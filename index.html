@@ -58,6 +58,10 @@
   @keyframes fadeIn {
     from { opacity: 0; } to { opacity: 1; }
   }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
 
   button { font-family: inherit; }
   input, textarea { font-family: inherit; }
@@ -87,8 +91,9 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="data.js"></script>
-<script type="text/babel" src="ios-frame.jsx"></script>
+<script src="supabase.js"></script>
 <script type="text/babel" src="ui.jsx"></script>
 <script type="text/babel" src="screens.jsx"></script>
 <script type="text/babel" src="app.jsx"></script>

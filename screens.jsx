@@ -5,19 +5,50 @@ const { useState, useMemo, useRef, useEffect } = React;
 // ════════════════════════════════════════════════════════════
 // LOGIN
 // ════════════════════════════════════════════════════════════
-function LoginScreen({ onLogin }) {
+function LoginScreen() {
+  const [modo, setModo] = useState('entrar'); // 'entrar' | 'criar'
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [nome, setNome] = useState('');
-  const [pin, setPin] = useState('');
-  const [perfil, setPerfil] = useState('admin');
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [info, setInfo] = useState('');
 
-  const submit = () => {
-    if (!nome.trim()) { setErr('Informe seu nome'); return; }
-    if (pin.length !== 4) { setErr('PIN de 4 dígitos'); return; }
-    onLogin({ nome: nome.trim(), perfil });
+  const handleEntrar = async () => {
+    if (!email.trim()) { setErr('Informe seu e-mail'); return; }
+    if (!senha) { setErr('Informe a senha'); return; }
+    setLoading(true); setErr('');
+    const { error } = await SB.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
+    if (error) {
+      const msgs = {
+        'Invalid login credentials': 'E-mail ou senha incorretos.',
+        'Email not confirmed': 'Confirme seu e-mail antes de entrar.',
+        'Too many requests': 'Muitas tentativas. Aguarde alguns minutos.',
+      };
+      setErr(msgs[error.message] || error.message);
+    }
+    setLoading(false);
   };
 
-  const fill = (n, p, perf) => { setNome(n); setPin(p); setPerfil(perf); setErr(''); };
+  const handleCriar = async () => {
+    if (!nome.trim()) { setErr('Informe seu nome completo'); return; }
+    if (!email.trim()) { setErr('Informe seu e-mail'); return; }
+    if (senha.length < 6) { setErr('Senha mínima de 6 caracteres'); return; }
+    setLoading(true); setErr('');
+    const { error } = await SB.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password: senha,
+      options: { data: { nome: nome.trim() } },
+    });
+    if (error) {
+      setErr(error.message);
+    } else {
+      setInfo('Conta criada! Verifique seu e-mail para confirmar. Se não chegou, cheque a pasta de spam.');
+      setModo('entrar');
+      setSenha('');
+    }
+    setLoading(false);
+  };
 
   return (
     <div style={{
@@ -35,8 +66,7 @@ function LoginScreen({ onLogin }) {
       {/* logo */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 10, position: 'relative' }}>
         <img src="assets/mevam-logo.png" alt="MEVAM" style={{
-          width: 168,
-          mixBlendMode: 'screen',
+          width: 168, mixBlendMode: 'screen',
           filter: 'drop-shadow(0 6px 24px rgba(91,127,255,0.5))',
         }} />
       </div>
@@ -70,36 +100,53 @@ function LoginScreen({ onLogin }) {
 
       {/* form */}
       <div style={{ marginTop: 28, position: 'relative' }}>
+
+        {/* toggle entrar / criar conta */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+          <SegBtn active={modo === 'entrar'} onClick={() => { setModo('entrar'); setErr(''); setInfo(''); }} icon={<Icon name="person" size={14}/>}>Entrar</SegBtn>
+          <SegBtn active={modo === 'criar'}  onClick={() => { setModo('criar');  setErr(''); setInfo(''); }} icon={<Icon name="plus"   size={14}/>}>Criar conta</SegBtn>
+        </div>
+
         <Card glow accent={MEVAM_COLORS.accent} style={{ padding: 18 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Field label="Nome">
-              <input value={nome} onChange={(e) => { setNome(e.target.value); setErr(''); }}
-                placeholder="Seu nome ou apelido"
-                style={inputStyle} />
+
+            {modo === 'criar' && (
+              <Field label="Nome completo">
+                <input value={nome} onChange={(e) => { setNome(e.target.value); setErr(''); }}
+                  placeholder="Seu nome completo" style={inputStyle} autoComplete="name" />
+              </Field>
+            )}
+
+            <Field label="E-mail">
+              <input value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }}
+                placeholder="seu@email.com" type="email" inputMode="email"
+                style={inputStyle} autoCapitalize="none" autoComplete="email" />
             </Field>
-            <Field label="PIN (4 dígitos)">
-              <input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0,4)); setErr(''); }}
-                placeholder="• • • •" inputMode="numeric" maxLength={4}
-                style={{ ...inputStyle, letterSpacing: 8, fontWeight: 700 }} />
+
+            <Field label="Senha">
+              <input value={senha} onChange={(e) => { setSenha(e.target.value); setErr(''); }}
+                placeholder={modo === 'criar' ? 'Mínimo 6 caracteres' : '••••••••'}
+                type="password" style={inputStyle}
+                autoComplete={modo === 'criar' ? 'new-password' : 'current-password'}
+                onKeyDown={(e) => e.key === 'Enter' && (modo === 'entrar' ? handleEntrar() : handleCriar())} />
             </Field>
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <SegBtn active={perfil === 'admin'}  onClick={() => setPerfil('admin')}  icon={<Icon name="shield" size={14}/>}>Admin</SegBtn>
-              <SegBtn active={perfil === 'membro'} onClick={() => setPerfil('membro')} icon={<Icon name="person" size={14}/>}>Membro</SegBtn>
-            </div>
-            {err && <div style={{ color: MEVAM_COLORS.danger, fontSize: 12, fontFamily: 'Manrope' }}>{err}</div>}
-            <Btn variant="accent" full onClick={submit}>Entrar</Btn>
+
+            {err  && <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope', lineHeight: 1.4 }}>{err}</div>}
+            {info && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, background: MEVAM_COLORS.ok + '18', border: `1px solid ${MEVAM_COLORS.ok}44` }}>
+                <Icon name="check" size={14} />
+                <div style={{ color: MEVAM_COLORS.ok, fontSize: 12.5, fontFamily: 'Manrope', lineHeight: 1.4 }}>{info}</div>
+              </div>
+            )}
+
+            <Btn variant="accent" full
+              onClick={modo === 'entrar' ? handleEntrar : handleCriar}
+              disabled={loading}
+              style={{ marginTop: 2 }}>
+              {loading ? 'Aguarde...' : modo === 'entrar' ? 'Entrar' : 'Criar conta'}
+            </Btn>
           </div>
         </Card>
-
-        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ fontSize: 10.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>
-            Demo · toque para preencher
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <DemoChip onClick={() => fill('Lucas Andrade', '1234', 'admin')}>Lucas · Admin</DemoChip>
-            <DemoChip onClick={() => fill('Bruno Vieira', '0000', 'membro')}>Bruno · Membro</DemoChip>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -970,7 +1017,7 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
 // ════════════════════════════════════════════════════════════
 // ADMIN
 // ════════════════════════════════════════════════════════════
-function AdminScreen({ state, dispatch, usuario, onToast }) {
+function AdminScreen({ state, dispatch, usuario, onToast, onGerarEscala }) {
   if (usuario.perfil !== 'admin') {
     return (
       <div style={screenWrap}>
@@ -1066,8 +1113,7 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={() => {
-              dispatch({ type: 'gerar_escala' });
-              onToast('Escala gerada para as próximas 2 semanas', 'ok');
+              onGerarEscala && onGerarEscala();
             }}>Gerar agora</Btn>
             <Btn variant="ghost" icon={<Icon name="edit" size={14}/>} onClick={() => onToast('Edição manual: arraste membros no detalhe do culto', 'info')}>Editar</Btn>
           </div>

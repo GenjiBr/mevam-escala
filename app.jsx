@@ -1,43 +1,30 @@
-// MEVAM Escala — App shell + tab nav + state
+// MEVAM Escala — App shell + tab nav + state (Supabase)
 
-const { useReducer, useEffect: useEffectApp, useState: useStateApp } = React;
+const { useReducer, useEffect: useEffectApp, useState: useStateApp, useCallback: useCallbackApp } = React;
 
-const STORAGE_KEY = 'mevam_escala_v1';
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return null;
-}
-function saveState(s) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
-}
-
-function initialState() {
-  const saved = loadState();
-  if (saved && saved.cultos && saved.cultos.length) return saved;
-  return {
-    membros: window.MEMBROS_INICIAIS,
-    cultos: window.CULTOS_INICIAIS,
-    indispo: window.INDISPO_INICIAIS,
-  };
-}
-
+/* ─────────────────────────────────────────────────
+   Reducer (estado local puro — sem side-effects)
+───────────────────────────────────────────────── */
 function reducer(state, action) {
   switch (action.type) {
+
+    case 'hydrate':
+      return { ...state, membros: action.membros, cultos: action.cultos, indispo: action.indispo, carregando: false };
+
+    case 'set_cultos':
+      return { ...state, cultos: action.cultos };
+
     case 'add_indispo': {
       const next = { ...state.indispo };
       for (const iso of action.datas) {
         const arr = next[iso] ? [...next[iso]] : [];
-        if (!arr.some((x) => x.membroId === action.usuarioId)) {
+        if (!arr.some((x) => x.membroId === action.usuarioId))
           arr.push({ membroId: action.usuarioId, motivo: action.motivo || '', lembrete: action.lembrete || false });
-        }
         next[iso] = arr;
       }
       return { ...state, indispo: next };
     }
+
     case 'remove_indispo': {
       const next = { ...state.indispo };
       if (next[action.iso]) {
@@ -46,58 +33,27 @@ function reducer(state, action) {
       }
       return { ...state, indispo: next };
     }
-    case 'gerar_escala': {
-      // simulação: limpa slots vazios atribuindo membros aleatórios disponíveis
-      const next = state.cultos.map((c) => {
-        const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
-        const esc = { ...c.escalados };
-        for (const [fid, val] of Object.entries(esc)) {
-          if (Array.isArray(val)) continue;
-          if (!val) {
-            const candidato = state.membros.find((m) =>
-              m.status === 'ativo' &&
-              (m.func === fid || m.secundarias.includes(fid)) &&
-              !indispoIds.includes(m.id)
-            );
-            if (candidato) esc[fid] = candidato.id;
-          } else if (indispoIds.includes(val)) {
-            // troca por outro disponível
-            const sub = state.membros.find((m) =>
-              m.status === 'ativo' &&
-              (m.func === fid || m.secundarias.includes(fid)) &&
-              !indispoIds.includes(m.id) &&
-              m.id !== val
-            );
-            if (sub) esc[fid] = sub.id;
-          }
-        }
-        return { ...c, escalados: esc };
-      });
-      return { ...state, cultos: next };
-    }
-    case 'update_membro': {
-      return {
-        ...state,
-        membros: state.membros.map((m) =>
-          m.id === action.id ? { ...m, ...action.updates } : m
-        ),
-      };
-    }
-    case 'reset': return initialState();
+
+    case 'update_membro':
+      return { ...state, membros: state.membros.map((m) => m.id === action.id ? { ...m, ...action.updates } : m) };
+
+    case 'set_loading':
+      return { ...state, carregando: action.value };
+
     default: return state;
   }
 }
 
-// ════════════════════════════════════════════════════════════
-// Tab bar
-// ════════════════════════════════════════════════════════════
+/* ─────────────────────────────────────────────────
+   Tab bar
+───────────────────────────────────────────────── */
 function TabBar({ tab, setTab, perfil }) {
   const tabs = [
-    { id: 'escala',         label: 'Escala',    icon: 'calendar' },
-    { id: 'disponibilidade',label: 'Ausência',  icon: 'ban'      },
-    { id: 'membros',        label: 'Equipe',    icon: 'users'    },
-    { id: 'perfil',         label: 'Perfil',    icon: 'person'   },
-    { id: 'admin',          label: 'Admin',     icon: 'shield'   },
+    { id: 'escala',          label: 'Escala',   icon: 'calendar' },
+    { id: 'disponibilidade', label: 'Ausência', icon: 'ban'      },
+    { id: 'membros',         label: 'Equipe',   icon: 'users'    },
+    { id: 'perfil',          label: 'Perfil',   icon: 'person'   },
+    { id: 'admin',           label: 'Admin',    icon: 'shield'   },
   ];
   return (
     <div style={{
@@ -108,8 +64,7 @@ function TabBar({ tab, setTab, perfil }) {
       border: `1px solid ${MEVAM_COLORS.borderHi}`,
       backdropFilter: 'blur(20px) saturate(160%)',
       WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-      padding: 6,
-      display: 'flex', gap: 4,
+      padding: 6, display: 'flex', gap: 4,
       boxShadow: '0 12px 36px rgba(0,0,0,0.5)',
     }}>
       {tabs.map((t) => {
@@ -136,43 +91,146 @@ function TabBar({ tab, setTab, perfil }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════
-// App
-// ════════════════════════════════════════════════════════════
+/* ─────────────────────────────────────────────────
+   Tela de splash / loading
+───────────────────────────────────────────────── */
+function SplashScreen({ msg = 'Carregando...' }) {
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: `radial-gradient(120% 70% at 50% 0%, rgba(91,127,255,0.2), rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
+    }}>
+      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+        <img src="assets/mevam-logo.png" alt="MEVAM" style={{ width: 130, mixBlendMode: 'screen', opacity: 0.85 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13 }}>
+          <div style={{ width: 16, height: 16, borderRadius: 999, border: `2px solid ${MEVAM_COLORS.accent}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+          {msg}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────
+   App
+───────────────────────────────────────────────── */
 function App() {
   const [usuario, setUsuario] = useStateApp(null);
   const [tab, setTab] = useStateApp('escala');
-  const [state, dispatch] = useReducer(reducer, null, initialState);
+  const [state, _dispatch] = useReducer(reducer, { membros: [], cultos: [], indispo: {}, carregando: true });
   const [toast, setToast] = useStateApp({ msg: '', kind: 'ok' });
-
-  useEffectApp(() => { saveState(state); }, [state]);
-
-  // welcome toast no login
-  useEffectApp(() => {
-    if (usuario) {
-      const meu = state.cultos.find((c) => Object.values(c.escalados).flat().includes(usuario.id));
-      if (meu) {
-        const d = formatBRDate(meu.data);
-        setTimeout(() => setToast({ msg: `Você está escalado para ${d.diaSemana}, ${d.dia} ${d.mes}`, kind: 'info' }), 600);
-      }
-    }
-  }, [usuario]);
+  const [authLoading, setAuthLoading] = useStateApp(true);
 
   const showToast = (msg, kind = 'ok') => setToast({ msg, kind });
 
-  const handleLogin = ({ nome, perfil }) => {
-    let id = 'm1';
-    const match = state.membros.find((m) => m.nome.toLowerCase() === nome.toLowerCase());
-    if (match) id = match.id;
-    else if (perfil === 'membro') id = 'm4';
-    setUsuario({ id, nome: match?.nome || nome, perfil });
-  };
+  /* ── Dispatch com persistência no Supabase ── */
+  const dispatch = useCallbackApp(async (action) => {
+    _dispatch(action);
+    switch (action.type) {
+      case 'add_indispo':
+        for (const iso of action.datas)
+          await sbAddIndispo({ membroId: action.usuarioId, data: iso, motivo: action.motivo, lembrete: action.lembrete });
+        break;
+      case 'remove_indispo':
+        await sbRemoveIndispo({ membroId: action.usuarioId, data: action.iso });
+        break;
+      case 'update_membro':
+        await sbUpdateMembro(action.id, action.updates);
+        break;
+    }
+  }, []);
 
-  const handleLogout = () => { setUsuario(null); setTab('escala'); };
-  const handleUpdateUsuario = (updates) => setUsuario((u) => ({ ...u, ...updates }));
+  /* ── Gerar escala (calcula + persiste cultos) ── */
+  const handleGerarEscala = useCallbackApp(async () => {
+    const novosCultos = state.cultos.map((c) => {
+      const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
+      const esc = { ...c.escalados };
+      for (const [fid, val] of Object.entries(esc)) {
+        if (Array.isArray(val)) continue;
+        if (!val) {
+          const cand = state.membros.find((m) =>
+            m.status === 'ativo' && (m.func === fid || m.secundarias.includes(fid)) && !indispoIds.includes(m.id));
+          if (cand) esc[fid] = cand.id;
+        } else if (indispoIds.includes(val)) {
+          const sub = state.membros.find((m) =>
+            m.status === 'ativo' && (m.func === fid || m.secundarias.includes(fid)) && !indispoIds.includes(m.id) && m.id !== val);
+          if (sub) esc[fid] = sub.id;
+        }
+      }
+      return { ...c, escalados: esc };
+    });
+    _dispatch({ type: 'set_cultos', cultos: novosCultos });
+    for (const c of novosCultos) await sbUpsertCulto(c);
+    showToast('Escala gerada para as próximas semanas', 'ok');
+  }, [state.cultos, state.membros, state.indispo]);
 
+  /* ── Auth: escuta mudanças de sessão ── */
+  useEffectApp(() => {
+    const { data: { subscription } } = SB.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const { data: membro } = await SB.from('membros')
+          .select('*').eq('email', session.user.email).maybeSingle();
+
+        if (membro) {
+          setUsuario({ id: membro.id, nome: membro.nome, perfil: membro.perfil || 'membro' });
+        } else {
+          // Primeiro login: cria registro de membro automaticamente
+          const partes = (session.user.email || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
+          const nomeAuto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ').trim();
+          const novoId = 'u_' + session.user.id.replace(/-/g, '').slice(0, 10);
+          const novoMembro = {
+            id: novoId,
+            nome: nomeAuto,
+            email: session.user.email,
+            iniciais: nomeAuto.split(' ').map((x) => x[0]).filter(Boolean).join('').toUpperCase().slice(0, 2),
+            func: 'vocal_backing',
+            secundarias: [],
+            status: 'ativo',
+            tom: '#5B7FFF',
+            perfil: 'membro',
+          };
+          const ok = await sbInsertMembro(novoMembro);
+          if (ok) setUsuario({ id: novoId, nome: nomeAuto, perfil: 'membro' });
+        }
+      } else {
+        setUsuario(null);
+      }
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  /* ── Carrega dados quando o usuário loga ── */
+  useEffectApp(() => {
+    if (!usuario) return;
+    (async () => {
+      _dispatch({ type: 'set_loading', value: true });
+      const [membros, cultos, indispo] = await Promise.all([sbGetMembros(), sbGetCultos(), sbGetIndispo()]);
+      // Primeira execução como admin: semeia os cultos de exemplo
+      if (cultos.length === 0 && usuario.perfil === 'admin') {
+        await sbSeedCultos();
+        const cultosSeeded = await sbGetCultos();
+        _dispatch({ type: 'hydrate', membros, cultos: cultosSeeded, indispo });
+        showToast('Cultos de exemplo carregados!', 'info');
+      } else {
+        _dispatch({ type: 'hydrate', membros, cultos, indispo });
+      }
+    })();
+  }, [usuario?.id]);
+
+  /* ── Toast de boas-vindas ── */
+  useEffectApp(() => {
+    if (!usuario || state.carregando) return;
+    const meu = state.cultos.find((c) => Object.values(c.escalados).flat().includes(usuario.id));
+    if (meu) {
+      const d = formatBRDate(meu.data);
+      setTimeout(() => setToast({ msg: `Você está escalado para ${d.diaSemana}, ${d.dia} ${d.mes}`, kind: 'info' }), 800);
+    }
+  }, [state.carregando]);
+
+  /* ── Compartilhar ── */
   const handleShare = () => {
-    const proximo = [...state.cultos].sort((a,b)=>a.data.localeCompare(b.data))[0];
+    const proximo = [...state.cultos].sort((a, b) => a.data.localeCompare(b.data))[0];
     if (!proximo) return;
     const d = formatBRDate(proximo.data);
     const linhas = [`🎵 MEVAM Ceilândia · ${proximo.titulo}`, `📅 ${d.diaSemana}, ${d.dia} ${d.mes} · ${proximo.horario}`, ''];
@@ -183,7 +241,6 @@ function App() {
       if (nomes) linhas.push(`${f.icon} ${f.label}: ${nomes}`);
     }
     const texto = linhas.join('\n');
-    // usa Web Share API se disponível (abre painel nativo: WhatsApp, Telegram, etc.)
     if (navigator.share) {
       navigator.share({ title: `MEVAM Escala · ${proximo.titulo}`, text: texto }).catch(() => {});
     } else if (navigator.clipboard) {
@@ -192,14 +249,25 @@ function App() {
     }
   };
 
-  if (!usuario) return <LoginScreen onLogin={handleLogin} />;
+  const handleLogout = async () => {
+    await SB.auth.signOut();
+    setUsuario(null);
+    setTab('escala');
+  };
+
+  const handleUpdateUsuario = (updates) => setUsuario((u) => ({ ...u, ...updates }));
+
+  /* ── Renders condicionais ── */
+  if (authLoading) return <SplashScreen msg="Verificando sessão..." />;
+  if (!usuario)   return <LoginScreen />;
+  if (state.carregando) return <SplashScreen msg="Carregando dados..." />;
 
   const screens = {
-    escala:           <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
-    disponibilidade:  <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
-    membros:          <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
-    perfil:           <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
-    admin:            <AdminScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
+    escala:          <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
+    disponibilidade: <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
+    membros:         <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
+    perfil:          <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
+    admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onGerarEscala={handleGerarEscala} />,
   };
 
   return (
@@ -208,19 +276,14 @@ function App() {
       background: `radial-gradient(140% 70% at 50% -10%, rgba(91,127,255,0.18), rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
       fontFamily: 'Manrope, system-ui, sans-serif',
     }}>
-      {/* faint stars — fixed para não duplicar ao rolar */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', opacity: 0.4, zIndex: 0,
         backgroundImage: 'radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.6) 0%, transparent 50%), radial-gradient(1.5px 1.5px at 78% 12%, rgba(168,187,255,0.55) 0%, transparent 50%), radial-gradient(1px 1px at 42% 78%, rgba(255,255,255,0.45) 0%, transparent 50%), radial-gradient(1px 1px at 88% 62%, rgba(168,187,255,0.5) 0%, transparent 50%), radial-gradient(1.2px 1.2px at 22% 55%, rgba(255,255,255,0.4) 0%, transparent 50%)',
       }} />
-
-      {/* conteúdo rola naturalmente pelo body */}
       <div style={{ position: 'relative', zIndex: 1 }} className="mevam-scroll">
         {screens[tab]}
       </div>
-
       <TabBar tab={tab} setTab={setTab} perfil={usuario.perfil} />
-
       <Toast msg={toast.msg} kind={toast.kind} onClose={() => setToast({ msg: '', kind: 'ok' })} />
     </div>
   );
