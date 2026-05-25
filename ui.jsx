@@ -215,38 +215,4 @@ function Icon({ name, size = 18 }) {
   }
 }
 
-// ──────────────────────────────────────────────────────────
-// Logo MEVAM (SVG inline — sem arquivo de imagem)
-// ──────────────────────────────────────────────────────────
-function MEVAMLogo({ width = 200 }) {
-  return (
-    <svg width={width} viewBox="0 0 260 108" fill="none"
-         xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      {/* borda externa */}
-      <rect x="1" y="1" width="258" height="106" stroke="white" strokeWidth="1.5"/>
-
-      {/* BRASÍLIA */}
-      <text x="130" y="19" textAnchor="middle"
-        fontFamily="'Manrope', sans-serif" fontSize="10.5" fontWeight="700"
-        fill="white" letterSpacing="5">BRASÍLIA</text>
-
-      {/* linha separadora superior */}
-      <line x1="10" y1="25" x2="250" y2="25" stroke="white" strokeWidth="0.8" opacity="0.7"/>
-
-      {/* MEVAM — letras vazadas (outline) */}
-      <text x="130" y="82" textAnchor="middle"
-        fontFamily="'Manrope', sans-serif" fontSize="58" fontWeight="800"
-        fill="none" stroke="white" strokeWidth="1.2" letterSpacing="4">MEVAM</text>
-
-      {/* linha separadora inferior */}
-      <line x1="10" y1="88" x2="250" y2="88" stroke="white" strokeWidth="0.8" opacity="0.7"/>
-
-      {/* CEILÂNDIA|DF */}
-      <text x="130" y="101" textAnchor="middle"
-        fontFamily="'Manrope', sans-serif" fontSize="9.5" fontWeight="700"
-        fill="white" letterSpacing="4.5">CEILÂNDIA|DF</text>
-    </svg>
-  );
-}
-
-Object.assign(window, { Avatar, FuncBadge, FuncDot, Card, Btn, Chip, Toast, Icon, MEVAMLogo });
+Object.assign(window, { Avatar, FuncBadge, FuncDot, Card, Btn, Chip, Toast, Icon });
