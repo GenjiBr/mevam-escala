@@ -75,6 +75,14 @@ function reducer(state, action) {
       });
       return { ...state, cultos: next };
     }
+    case 'update_membro': {
+      return {
+        ...state,
+        membros: state.membros.map((m) =>
+          m.id === action.id ? { ...m, ...action.updates } : m
+        ),
+      };
+    }
     case 'reset': return initialState();
     default: return state;
   }
@@ -181,7 +189,7 @@ function App() {
   const screens = {
     escala:           <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} />,
     disponibilidade:  <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
-    membros:          <MembrosScreen state={state} usuario={usuario} onToast={showToast} />,
+    membros:          <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     admin:            <AdminScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
   };
 

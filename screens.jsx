@@ -84,7 +84,7 @@ function LoginScreen({ onLogin }) {
             </Field>
             <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
               <SegBtn active={perfil === 'admin'}  onClick={() => setPerfil('admin')}  icon={<Icon name="shield" size={14}/>}>Admin</SegBtn>
-              <SegBtn active={perfil === 'membro'} onClick={() => setPerfil('membro')} icon={<Icon name="mic" size={14}/>}>Membro</SegBtn>
+              <SegBtn active={perfil === 'membro'} onClick={() => setPerfil('membro')} icon={<Icon name="person" size={14}/>}>Membro</SegBtn>
             </div>
             {err && <div style={{ color: MEVAM_COLORS.danger, fontSize: 12, fontFamily: 'Manrope' }}>{err}</div>}
             <Btn variant="accent" full onClick={submit}>Entrar</Btn>
@@ -665,7 +665,7 @@ const navBtn = { width: 30, height: 30, borderRadius: 8, background: MEVAM_COLOR
 // ════════════════════════════════════════════════════════════
 // MEMBROS
 // ════════════════════════════════════════════════════════════
-function MembrosScreen({ state, usuario, onToast }) {
+function MembrosScreen({ state, dispatch, usuario, onToast }) {
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('todos');
   const [selecionado, setSelecionado] = useState(null);
@@ -719,7 +719,7 @@ function MembrosScreen({ state, usuario, onToast }) {
         )}
       </div>
 
-      {selecionado && <MembroDetail membro={selecionado} state={state} onClose={() => setSelecionado(null)} />}
+      {selecionado && <MembroDetail membro={selecionado} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setSelecionado(null)} />}
     </div>
   );
 }
@@ -752,53 +752,135 @@ function MembroCard({ membro, state, onClick, self }) {
   );
 }
 
-function MembroDetail({ membro, state, onClose }) {
+function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
+  const isOwn = membro.id === usuario.id;
+  const [editando, setEditando] = useState(false);
+  const [funcPrincipal, setFuncPrincipal] = useState(membro.func);
+  const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
+
   const cultos = state.cultos.filter((c) => Object.values(c.escalados).flat().includes(membro.id));
+  const todasFuncoes = Object.entries(window.FUNCOES);
+
+  const toggleSecundaria = (fid) => {
+    if (fid === funcPrincipal) return;
+    setFuncsSecundarias((prev) =>
+      prev.includes(fid) ? prev.filter((f) => f !== fid) : [...prev, fid]
+    );
+  };
+
+  const salvar = () => {
+    const secundariasLimpas = funcsSecundarias.filter((f) => f !== funcPrincipal);
+    dispatch({ type: 'update_membro', id: membro.id, updates: { func: funcPrincipal, secundarias: secundariasLimpas } });
+    onToast('Funções atualizadas!', 'ok');
+    setEditando(false);
+  };
+
   return (
     <div onClick={onClose} style={{
-      position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
       zIndex: 90, display: 'flex', alignItems: 'flex-end',
       animation: 'fadeIn .2s',
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
-        width: '100%', background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        width: '100%', maxWidth: 480, margin: '0 auto',
+        background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: '20px 20px 40px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
         animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
+        maxHeight: '90dvh', overflowY: 'auto',
       }}>
         <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 16px' }} />
+
+        {/* cabeçalho */}
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <Avatar iniciais={membro.iniciais} tom={membro.tom} size={60} ring />
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 22, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>{membro.nome}</div>
             <div style={{ marginTop: 6 }}><FuncBadge funcId={membro.func} size="md"/></div>
           </div>
+          {isOwn && !editando && (
+            <button onClick={() => setEditando(true)} style={{ background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}55`, color: '#A8BBFF', borderRadius: 10, padding: '8px 14px', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="edit" size={13}/> Editar
+            </button>
+          )}
         </div>
-        {membro.secundarias.length > 0 && (
-          <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 10.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Funções secundárias</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {membro.secundarias.map((f) => <FuncBadge key={f} funcId={f}/>)}
+
+        {/* editor de funções */}
+        {isOwn && editando ? (
+          <div style={{ marginTop: 22 }}>
+            {/* função principal */}
+            <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+              Função principal <span style={{ color: MEVAM_COLORS.accent }}>(selecione uma)</span>
             </div>
-          </div>
-        )}
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 10.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Próximas escalas ({cultos.length})</div>
-          {cultos.length === 0 ? (
-            <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13, padding: '12px 0' }}>Não há escalas registradas.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {cultos.map((c) => {
-                const d = formatBRDate(c.data);
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {todasFuncoes.map(([fid, f]) => {
+                const ativo = funcPrincipal === fid;
                 return (
-                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: MEVAM_COLORS.card, borderRadius: 10, fontFamily: 'Manrope', fontSize: 13 }}>
-                    <span style={{ color: MEVAM_COLORS.text, fontWeight: 600 }}>{c.titulo}</span>
-                    <span style={{ color: MEVAM_COLORS.muted }}>{d.diaSemana}, {d.dia} {d.mes}</span>
-                  </div>
+                  <button key={fid} onClick={() => { setFuncPrincipal(fid); setFuncsSecundarias((s) => s.filter((x) => x !== fid)); }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, transition: 'all .15s', background: ativo ? f.color + '28' : 'rgba(255,255,255,0.04)', border: `1.5px solid ${ativo ? f.color : MEVAM_COLORS.border}`, color: ativo ? f.color : MEVAM_COLORS.muted }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: ativo ? f.color : MEVAM_COLORS.border, boxShadow: ativo ? `0 0 6px ${f.color}` : 'none', flexShrink: 0 }} />
+                    {f.label}
+                    {ativo && <span style={{ fontSize: 10 }}>✓</span>}
+                  </button>
                 );
               })}
             </div>
-          )}
-        </div>
+
+            {/* funções secundárias */}
+            <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+              Funções secundárias <span style={{ color: MEVAM_COLORS.mutedSoft, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(pode marcar várias)</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {todasFuncoes.filter(([fid]) => fid !== funcPrincipal).map(([fid, f]) => {
+                const ativo = funcsSecundarias.includes(fid);
+                return (
+                  <button key={fid} onClick={() => toggleSecundaria(fid)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, transition: 'all .15s', background: ativo ? f.color + '20' : 'rgba(255,255,255,0.04)', border: `1.5px solid ${ativo ? f.color + 'AA' : MEVAM_COLORS.border}`, color: ativo ? f.color : MEVAM_COLORS.muted }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: ativo ? f.color : MEVAM_COLORS.border, flexShrink: 0 }} />
+                    {f.label}
+                    {ativo && <span style={{ fontSize: 10 }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Btn variant="ghost" onClick={() => { setEditando(false); setFuncPrincipal(membro.func); setFuncsSecundarias(membro.secundarias || []); }}>Cancelar</Btn>
+              <Btn variant="accent" full icon={<Icon name="check" size={14}/>} onClick={salvar}>Salvar funções</Btn>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* funções secundárias (leitura) */}
+            {membro.secundarias.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ fontSize: 10.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Funções secundárias</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {membro.secundarias.map((f) => <FuncBadge key={f} funcId={f}/>)}
+                </div>
+              </div>
+            )}
+
+            {/* próximas escalas */}
+            <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 10.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Próximas escalas ({cultos.length})</div>
+              {cultos.length === 0 ? (
+                <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13, padding: '12px 0' }}>Não há escalas registradas.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {cultos.map((c) => {
+                    const d = formatBRDate(c.data);
+                    return (
+                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: MEVAM_COLORS.card, borderRadius: 10, fontFamily: 'Manrope', fontSize: 13 }}>
+                        <span style={{ color: MEVAM_COLORS.text, fontWeight: 600 }}>{c.titulo}</span>
+                        <span style={{ color: MEVAM_COLORS.muted }}>{d.diaSemana}, {d.dia} {d.mes}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

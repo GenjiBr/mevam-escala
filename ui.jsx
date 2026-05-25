@@ -209,6 +209,7 @@ function Icon({ name, size = 18 }) {
     case 'edit':     return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4z" {...stroke}/><path d="M14 6l4 4" {...stroke}/></svg>);
     case 'clock':    return (<svg width={s} height={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" {...stroke}/><path d="M12 7v5l3 2" {...stroke}/></svg>);
     case 'mic':      return (<svg width={s} height={s} viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" {...stroke}/><path d="M5 11a7 7 0 0014 0M12 18v3" {...stroke}/></svg>);
+    case 'person':   return (<svg width={s} height={s} viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" {...stroke}/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" {...stroke}/></svg>);
     case 'wand':     return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M4 20L16 8l2 2L6 22 4 20zM17 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" {...stroke}/></svg>);
     case 'pin':      return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M12 21s-7-6-7-12a7 7 0 0114 0c0 6-7 12-7 12z" {...stroke}/><circle cx="12" cy="9" r="2.5" {...stroke}/></svg>);
     default: return null;
