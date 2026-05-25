@@ -168,29 +168,31 @@ function App() {
   useEffectApp(() => {
     const { data: { subscription } } = SB.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        // monta nome/id a partir do email como fallback
+        const partes = (session.user.email || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
+        const nomeAuto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ').trim();
+        const idFallback = 'u_' + session.user.id.replace(/-/g, '').slice(0, 10);
+
         const { data: membro } = await SB.from('membros')
           .select('*').eq('email', session.user.email).maybeSingle();
 
         if (membro) {
+          // perfil encontrado normalmente
           setUsuario({ id: membro.id, nome: membro.nome, perfil: membro.perfil || 'membro' });
         } else {
-          // Primeiro login: cria registro de membro automaticamente
-          const partes = (session.user.email || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
-          const nomeAuto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ').trim();
-          const novoId = 'u_' + session.user.id.replace(/-/g, '').slice(0, 10);
-          const novoMembro = {
-            id: novoId,
-            nome: nomeAuto,
-            email: session.user.email,
+          // não encontrou (trigger ainda não rodou ou RLS bloqueou insert)
+          // deixa entrar com dados básicos e tenta inserir em background
+          setUsuario({ id: idFallback, nome: nomeAuto, perfil: 'membro' });
+          sbInsertMembro({
+            id: idFallback, nome: nomeAuto, email: session.user.email,
             iniciais: nomeAuto.split(' ').map((x) => x[0]).filter(Boolean).join('').toUpperCase().slice(0, 2),
-            func: 'vocal_backing',
-            secundarias: [],
-            status: 'ativo',
-            tom: '#5B7FFF',
-            perfil: 'membro',
-          };
-          const ok = await sbInsertMembro(novoMembro);
-          if (ok) setUsuario({ id: novoId, nome: nomeAuto, perfil: 'membro' });
+            func: 'vocal_backing', secundarias: [], status: 'ativo', tom: '#5B7FFF', perfil: 'membro',
+          }).then(async () => {
+            // após inserir, recarrega o perfil para pegar o id correto
+            const { data: m2 } = await SB.from('membros')
+              .select('*').eq('email', session.user.email).maybeSingle();
+            if (m2) setUsuario({ id: m2.id, nome: m2.nome, perfil: m2.perfil || 'membro' });
+          });
         }
       } else {
         setUsuario(null);
