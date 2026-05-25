@@ -58,10 +58,10 @@ function LoginScreen({ onLogin }) {
           fontWeight: 600, fontSize: 36, lineHeight: 1.02,
           color: MEVAM_COLORS.text, letterSpacing: -1,
         }}>
-          Servindo em <span style={{
+          Amar, servir, <span style={{
             background: 'linear-gradient(90deg, #FFFFFF, #8FA8FF)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>unidade</span>
+          }}>edificar</span>
         </h1>
         <p style={{ margin: 0, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 14, lineHeight: 1.5 }}>
           Organize a equipe, evite conflitos<br/>e prepare cada culto com clareza.
