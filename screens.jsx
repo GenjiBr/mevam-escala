@@ -150,12 +150,10 @@ function DemoChip({ children, onClick }) {
 // ESCALA (home)
 // ════════════════════════════════════════════════════════════
 function EscalaScreen({ state, dispatch, usuario, onShare, onToast }) {
-  const [filtroMes, setFiltroMes] = useState(new Date().getMonth());
   const cultos = useMemo(() => {
     return [...state.cultos].sort((a, b) => a.data.localeCompare(b.data));
   }, [state.cultos]);
 
-  const proximoCulto = cultos[0];
   const meuProximo = useMemo(() => {
     return cultos.find((c) => Object.values(c.escalados).flat().includes(usuario.id));
   }, [cultos, usuario.id]);
@@ -166,13 +164,10 @@ function EscalaScreen({ state, dispatch, usuario, onShare, onToast }) {
         <Btn variant="ghost" icon={<Icon name="share" size={14}/>} onClick={onShare} style={{ padding: '8px 12px', fontSize: 12 }}>Compartilhar</Btn>
       </Header>
 
-      {/* Hero: próximo culto do usuário */}
+      {/* Lembrete da próxima escala do usuário */}
       {meuProximo && (
-        <div style={{ padding: '8px 18px 0' }}>
-          <div style={{ fontSize: 11, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
-            Sua próxima escala
-          </div>
-          <CultoHeroCard culto={meuProximo} usuarioId={usuario.id} state={state} />
+        <div style={{ padding: '10px 18px 0' }}>
+          <LembreteEscala culto={meuProximo} usuarioId={usuario.id} state={state} />
         </div>
       )}
 
@@ -191,6 +186,86 @@ function EscalaScreen({ state, dispatch, usuario, onShare, onToast }) {
         {cultos.map((c) => (
           <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Lembrete da próxima escala do membro
+// ────────────────────────────────────────────────────────────
+function LembreteEscala({ culto, usuarioId, state }) {
+  // dias até o culto
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const [y, mo, d] = culto.data.split('-').map(Number);
+  const dataServico = new Date(y, mo - 1, d);
+  const diff = Math.round((dataServico - hoje) / (1000 * 60 * 60 * 24));
+
+  // funções do usuário neste culto
+  const minhasFuncoes = [];
+  for (const [fid, val] of Object.entries(culto.escalados)) {
+    if (Array.isArray(val)) { if (val.includes(usuarioId)) minhasFuncoes.push(fid); }
+    else if (val === usuarioId) minhasFuncoes.push(fid);
+  }
+
+  const data = formatBRDate(culto.data);
+
+  // urgência → cor e texto
+  let cor, textoTopo, emoji;
+  if (diff === 0)        { cor = '#EF4444'; textoTopo = 'Hoje é o dia!'; emoji = '🔥'; }
+  else if (diff === 1)   { cor = '#F39C12'; textoTopo = 'Amanhã você serve!'; emoji = '⚡'; }
+  else if (diff <= 3)    { cor = '#F39C12'; textoTopo = `Faltam ${diff} dias`; emoji = '⏰'; }
+  else if (diff <= 7)    { cor = '#5B7FFF'; textoTopo = `Faltam ${diff} dias`; emoji = '🔔'; }
+  else                   { cor = '#5B7FFF'; textoTopo = `Em ${diff} dias`; emoji = '📅'; }
+
+  return (
+    <div style={{
+      borderRadius: 18,
+      background: `linear-gradient(135deg, ${cor}1A 0%, ${cor}08 100%)`,
+      border: `1px solid ${cor}55`,
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
+      {/* barra lateral colorida */}
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: cor, boxShadow: `0 0 18px ${cor}88` }} />
+
+      <div style={{ padding: '14px 16px 14px 20px', display: 'flex', gap: 14, alignItems: 'center' }}>
+
+        {/* ícone contagem regressiva */}
+        <div style={{
+          width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+          background: cor + '22', border: `1px solid ${cor}44`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 0,
+        }}>
+          <span style={{ fontSize: 20, lineHeight: 1 }}>{emoji}</span>
+          {diff > 1 && (
+            <>
+              <span style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 15, color: cor, lineHeight: 1.1 }}>{diff}</span>
+              <span style={{ fontFamily: 'Manrope', fontSize: 8.5, color: cor + 'CC', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>dias</span>
+            </>
+          )}
+        </div>
+
+        {/* conteúdo */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'Manrope', fontSize: 10.5, fontWeight: 700, color: cor, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 3 }}>
+            🔔 Lembrete · {textoTopo}
+          </div>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 16, color: MEVAM_COLORS.text, letterSpacing: -0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {culto.titulo}
+          </div>
+          <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Icon name="calendar" size={11}/> {data.diaSemana}, {data.dia} {data.mes} · {culto.horario}
+            </span>
+          </div>
+          {minhasFuncoes.length > 0 && (
+            <div style={{ marginTop: 6, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {minhasFuncoes.map((fid) => <FuncBadge key={fid} funcId={fid} size="sm" />)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
