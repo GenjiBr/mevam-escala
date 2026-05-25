@@ -94,7 +94,7 @@ function reducer(state, action) {
 function TabBar({ tab, setTab, perfil }) {
   const tabs = [
     { id: 'escala',         label: 'Escala',    icon: 'calendar' },
-    { id: 'disponibilidade',label: 'Bloqueio',  icon: 'ban'      },
+    { id: 'disponibilidade',label: 'Ausência',  icon: 'ban'      },
     { id: 'membros',        label: 'Equipe',    icon: 'users'    },
     { id: 'perfil',         label: 'Perfil',    icon: 'person'   },
     { id: 'admin',          label: 'Admin',     icon: 'shield'   },
