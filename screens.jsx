@@ -789,7 +789,7 @@ function MembrosScreen({ state, dispatch, usuario, onToast }) {
       {/* lista */}
       <div style={{ padding: '14px 18px 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {filtrados.map((m) => (
-          <MembroCard key={m.id} membro={m} state={state} onClick={() => setSelecionado(m)} self={m.id === usuario.id} />
+          <MembroCard key={m.id} membro={m} state={state} onClick={() => setSelecionado(m)} self={m.id === usuario.id} isAdmin={usuario.perfil === 'admin'} />
         ))}
         {filtrados.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 12px', color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13 }}>
@@ -803,7 +803,7 @@ function MembrosScreen({ state, dispatch, usuario, onToast }) {
   );
 }
 
-function MembroCard({ membro, state, onClick, self }) {
+function MembroCard({ membro, state, onClick, self, isAdmin }) {
   const totalCultos = state.cultos.filter((c) => Object.values(c.escalados).flat().includes(membro.id)).length;
   return (
     <Card accent={membro.tom} onClick={onClick} style={{ padding: 14 }}>
@@ -822,10 +822,12 @@ function MembroCard({ membro, state, onClick, self }) {
             {membro.secundarias.slice(0, 2).map((f) => <FuncBadge key={f} funcId={f} />)}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, lineHeight: 1 }}>{totalCultos}</div>
-          <div style={{ fontSize: 9.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase' }}>cultos</div>
-        </div>
+        {isAdmin && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, lineHeight: 1 }}>{totalCultos}</div>
+            <div style={{ fontSize: 9.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase' }}>cultos</div>
+          </div>
+        )}
       </div>
     </Card>
   );
