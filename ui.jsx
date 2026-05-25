@@ -170,7 +170,8 @@ function Toast({ msg, kind = 'ok', onClose }) {
   const tone = tones[kind] || C.accent;
   return (
     <div style={{
-      position: 'absolute', left: 16, right: 16, bottom: 96, zIndex: 80,
+      position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+      width: 'calc(100% - 32px)', maxWidth: 448, bottom: 96, zIndex: 80,
       background: `linear-gradient(180deg, rgba(15,25,55,0.92), rgba(8,15,35,0.92))`,
       border: `1px solid ${tone}66`,
       borderRadius: 16, padding: '12px 14px',
