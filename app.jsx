@@ -187,17 +187,18 @@ function App() {
 
   return (
     <div style={{
-      height: '100%', height: '100dvh', position: 'relative', overflow: 'hidden',
+      minHeight: '100dvh', position: 'relative',
       background: `radial-gradient(140% 70% at 50% -10%, rgba(91,127,255,0.18), rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
       fontFamily: 'Manrope, system-ui, sans-serif',
     }}>
-      {/* faint stars */}
+      {/* faint stars — fixed para não duplicar ao rolar */}
       <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.4,
+        position: 'fixed', inset: 0, pointerEvents: 'none', opacity: 0.4, zIndex: 0,
         backgroundImage: 'radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.6) 0%, transparent 50%), radial-gradient(1.5px 1.5px at 78% 12%, rgba(168,187,255,0.55) 0%, transparent 50%), radial-gradient(1px 1px at 42% 78%, rgba(255,255,255,0.45) 0%, transparent 50%), radial-gradient(1px 1px at 88% 62%, rgba(168,187,255,0.5) 0%, transparent 50%), radial-gradient(1.2px 1.2px at 22% 55%, rgba(255,255,255,0.4) 0%, transparent 50%)',
       }} />
 
-      <div style={{ height: '100%', overflow: 'auto', paddingTop: 0 }} className="mevam-scroll">
+      {/* conteúdo rola naturalmente pelo body */}
+      <div style={{ position: 'relative', zIndex: 1 }} className="mevam-scroll">
         {screens[tab]}
       </div>
 

@@ -21,8 +21,8 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div style={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      padding: '60px 22px 24px', position: 'relative', overflow: 'hidden',
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      padding: '60px 22px calc(24px + env(safe-area-inset-bottom))', position: 'relative',
       background: `radial-gradient(120% 70% at 50% 0%, rgba(91,127,255,0.22) 0%, rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
     }}>
       {/* aurora glow */}
@@ -107,8 +107,9 @@ const inputStyle = {
   width: '100%', boxSizing: 'border-box',
   padding: '12px 14px', borderRadius: 12,
   background: 'rgba(0,0,0,0.35)', border: `1px solid ${MEVAM_COLORS.border}`,
-  color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontSize: 14, fontWeight: 500,
+  color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontSize: 16, fontWeight: 500,
   outline: 'none',
+  /* fontSize 16px previne zoom automático no iOS */
 };
 
 function Field({ label, children }) {
@@ -868,8 +869,8 @@ function Stat({ label, value, accent, sub }) {
 }
 
 const screenWrap = {
-  paddingBottom: 80,
-  minHeight: '100%',
+  paddingBottom: 'calc(100px + env(safe-area-inset-bottom))',
+  minHeight: '100dvh',
 };
 
 Object.assign(window, { LoginScreen, EscalaScreen, DisponibilidadeScreen, MembrosScreen, AdminScreen });
