@@ -183,14 +183,19 @@ function App() {
       if (nomes) linhas.push(`${f.icon} ${f.label}: ${nomes}`);
     }
     const texto = linhas.join('\n');
-    if (navigator.clipboard) navigator.clipboard.writeText(texto);
-    showToast('Escala copiada — cole no WhatsApp', 'ok');
+    // usa Web Share API se disponível (abre painel nativo: WhatsApp, Telegram, etc.)
+    if (navigator.share) {
+      navigator.share({ title: `MEVAM Escala · ${proximo.titulo}`, text: texto }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(texto);
+      showToast('Escala copiada — cole onde quiser', 'ok');
+    }
   };
 
   if (!usuario) return <LoginScreen onLogin={handleLogin} />;
 
   const screens = {
-    escala:           <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} />,
+    escala:           <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
     disponibilidade:  <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     membros:          <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     perfil:           <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,

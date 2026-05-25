@@ -149,7 +149,7 @@ function DemoChip({ children, onClick }) {
 // ════════════════════════════════════════════════════════════
 // ESCALA (home)
 // ════════════════════════════════════════════════════════════
-function EscalaScreen({ state, dispatch, usuario, onShare, onToast }) {
+function EscalaScreen({ state, dispatch, usuario, onShare, onToast, onPerfilClick }) {
   const cultos = useMemo(() => {
     return [...state.cultos].sort((a, b) => a.data.localeCompare(b.data));
   }, [state.cultos]);
@@ -158,9 +158,11 @@ function EscalaScreen({ state, dispatch, usuario, onShare, onToast }) {
     return cultos.find((c) => Object.values(c.escalados).flat().includes(usuario.id));
   }, [cultos, usuario.id]);
 
+  const membro = state.membros.find((m) => m.id === usuario.id);
+
   return (
     <div style={screenWrap}>
-      <Header usuario={usuario}>
+      <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <Btn variant="ghost" icon={<Icon name="share" size={14}/>} onClick={onShare} style={{ padding: '8px 12px', fontSize: 12 }}>Compartilhar</Btn>
       </Header>
 
@@ -271,26 +273,28 @@ function LembreteEscala({ culto, usuarioId, state }) {
   );
 }
 
-function Header({ usuario, children }) {
+function Header({ membro, usuario, onPerfilClick, children }) {
+  // nome real do perfil salvo; fallback para o nome de login
+  const primeiroNome = (membro?.nome || usuario.nome || '').split(' ')[0];
+  const iniciais = (membro?.nome || usuario.nome || '??').trim().split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
   return (
     <div style={{
       padding: '14px 18px 4px',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: '#0A1224', border: `1px solid ${MEVAM_COLORS.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
-        }}>
-          <span style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 14, color: '#fff', letterSpacing: -0.5 }}>M</span>
-        </div>
+      {/* avatar clicável → aba Perfil */}
+      <button onClick={onPerfilClick} style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: 'none', border: 'none', padding: 0,
+        cursor: onPerfilClick ? 'pointer' : 'default', textAlign: 'left',
+      }}>
+        <Avatar iniciais={iniciais} tom={membro?.tom || MEVAM_COLORS.accent} size={38} foto={membro?.foto} />
         <div>
           <div style={{ fontSize: 10.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', lineHeight: 1 }}>Olá,</div>
-          <div style={{ fontSize: 14, color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontWeight: 600, marginTop: 2 }}>{usuario.nome.split(' ')[0]}</div>
+          <div style={{ fontSize: 14, color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontWeight: 700, marginTop: 2 }}>{primeiroNome}</div>
         </div>
-      </div>
+      </button>
       {children}
     </div>
   );
