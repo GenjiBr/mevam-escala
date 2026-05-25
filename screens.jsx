@@ -50,7 +50,7 @@ function LoginScreen({ onLogin }) {
           fontFamily: 'Manrope', fontSize: 11.5, fontWeight: 600, color: '#A8BBFF',
           letterSpacing: 0.6, textTransform: 'uppercase',
         }}>
-          <Icon name="sparkles" size={13} /> Sistema de Escalas · Louvor
+          <Icon name="sparkles" size={13} /> Escala de Louvor e Mídia
         </div>
         <h1 style={{
           margin: '20px 0 10px',
