@@ -361,57 +361,152 @@ function CultoCard({ culto, state, usuarioId }) {
 // DISPONIBILIDADE
 // ════════════════════════════════════════════════════════════
 function DisponibilidadeScreen({ state, dispatch, usuario, onToast }) {
+  const isAdmin = usuario.perfil === 'admin';
+
+  // ── Visão membro (somente leitura) ──────────────────────
+  if (!isAdmin) {
+    const minhasBloqueadas = Object.entries(state.indispo)
+      .filter(([, list]) => list.some((i) => i.membroId === usuario.id))
+      .map(([iso]) => iso).sort();
+    return (
+      <div style={screenWrap}>
+        <div style={{ padding: '14px 18px 0' }}>
+          <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}33`, fontSize: 11, color: '#A8BBFF', fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+            <Icon name="ban" size={12}/> Indisponibilidade
+          </div>
+          <h2 style={{ margin: '14px 0 6px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 24, color: MEVAM_COLORS.text, letterSpacing: -0.5, lineHeight: 1.15 }}>
+            Suas datas bloqueadas
+          </h2>
+          <Card style={{ padding: 14, marginTop: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+                <Icon name="shield" size={17}/>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>Gerenciado pelo administrador</div>
+                <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>Fale com o admin para registrar ou alterar indisponibilidades.</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <div style={{ padding: '18px 18px 28px' }}>
+          {minhasBloqueadas.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 12px', color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13 }}>Nenhuma data bloqueada para você.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {minhasBloqueadas.map((iso) => {
+                const d = formatBRDate(iso);
+                const entry = state.indispo[iso].find((i) => i.membroId === usuario.id);
+                return (
+                  <div key={iso} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}` }}>
+                    <div style={{ width: 40, textAlign: 'center', flexShrink: 0 }}>
+                      <div style={{ fontSize: 9, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase' }}>{d.diaSemana}</div>
+                      <div style={{ fontSize: 20, color: MEVAM_COLORS.text, fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, lineHeight: 1 }}>{d.dia}</div>
+                      <div style={{ fontSize: 9, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase' }}>{d.mes}</div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>{d.diaSemana}, {d.dia} de {d.mes}</div>
+                      <div style={{ fontSize: 11.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', marginTop: 2 }}>{entry?.motivo || 'Sem motivo'}</div>
+                    </div>
+                    {entry?.lembrete && (
+                      <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.14)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>🔔 Lembrete</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Visão admin ──────────────────────────────────────────
+  return <AdminDisponibilidadeView state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} />;
+}
+
+function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
+  const [membroSel, setMembroSel] = useState(null);
   const [datas, setDatas] = useState(new Set());
   const [motivo, setMotivo] = useState('');
+  const [lembrete, setLembrete] = useState(false);
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
 
-  // datas já bloqueadas pelo usuário
-  const minhasBloqueadas = useMemo(() => {
+  const membrosAtivos = state.membros.filter((m) => m.status === 'ativo');
+
+  const bloqueadasMembro = useMemo(() => {
+    if (!membroSel) return new Set();
     const s = new Set();
     for (const [iso, list] of Object.entries(state.indispo)) {
-      if (list.some((i) => i.membroId === usuario.id)) s.add(iso);
+      if (list.some((i) => i.membroId === membroSel)) s.add(iso);
     }
     return s;
-  }, [state.indispo, usuario.id]);
+  }, [state.indispo, membroSel]);
 
   const toggle = (iso) => {
+    if (!membroSel) { onToast('Selecione um membro primeiro', 'warn'); return; }
     const s = new Set(datas);
     if (s.has(iso)) s.delete(iso); else s.add(iso);
     setDatas(s);
   };
 
   const salvar = () => {
+    if (!membroSel) { onToast('Selecione um membro', 'warn'); return; }
     if (datas.size === 0) { onToast('Selecione ao menos uma data', 'warn'); return; }
-    dispatch({ type: 'add_indispo', usuarioId: usuario.id, datas: [...datas], motivo });
-    setDatas(new Set()); setMotivo('');
-    onToast(`${datas.size} ${datas.size === 1 ? 'data informada' : 'datas informadas'}`, 'ok');
+    dispatch({ type: 'add_indispo', usuarioId: membroSel, datas: [...datas], motivo, lembrete });
+    const m = state.membros.find((x) => x.id === membroSel);
+    const nome = m?.nome?.split(' ')[0] || 'Membro';
+    onToast(`${datas.size} data(s) registrada(s) para ${nome}${lembrete ? ' · 🔔 lembrete criado' : ''}`, 'ok');
+    setDatas(new Set()); setMotivo(''); setLembrete(false);
   };
+
+  const mSel = state.membros.find((x) => x.id === membroSel);
 
   return (
     <div style={screenWrap}>
+      {/* cabeçalho */}
       <div style={{ padding: '14px 18px 0' }}>
         <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: MEVAM_COLORS.dangerSoft, border: `1px solid ${MEVAM_COLORS.danger}33`, fontSize: 11, color: MEVAM_COLORS.danger, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
           <Icon name="ban" size={12}/> Indisponibilidade
         </div>
-        <h2 style={{ margin: '14px 0 6px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 26, color: MEVAM_COLORS.text, letterSpacing: -0.6, lineHeight: 1.1 }}>
-          Quais datas você <span style={{ color: '#FF8585' }}>não pode</span> servir?
+        <h2 style={{ margin: '12px 0 4px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 24, color: MEVAM_COLORS.text, letterSpacing: -0.5, lineHeight: 1.15 }}>
+          Registrar indisponibilidade
         </h2>
         <p style={{ margin: 0, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13, lineHeight: 1.5 }}>
-          Toque nos dias para bloquear. Sua equipe respeitará essas datas na escala.
+          Selecione o membro e os dias em que não poderá servir.
         </p>
       </div>
 
-      <div style={{ padding: '18px 18px 0' }}>
-        <Calendar
-          cursor={cursor} setCursor={setCursor}
-          selected={datas}
-          onToggle={toggle}
-          alreadyBlocked={minhasBloqueadas}
-          state={state}
-        />
+      {/* seletor de membro */}
+      <div style={{ padding: '16px 18px 0' }}>
+        <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>Membro</div>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+          {membrosAtivos.map((m) => {
+            const ativo = membroSel === m.id;
+            return (
+              <button key={m.id} onClick={() => { setMembroSel(m.id); setDatas(new Set()); }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 12px', borderRadius: 14, flexShrink: 0, cursor: 'pointer', background: ativo ? m.tom + '22' : MEVAM_COLORS.card, border: `1.5px solid ${ativo ? m.tom : MEVAM_COLORS.border}`, transition: 'all .15s', minWidth: 64 }}>
+                <Avatar iniciais={m.iniciais} tom={m.tom} size={36} ring={ativo} />
+                <span style={{ fontSize: 10.5, fontFamily: 'Manrope', fontWeight: 600, color: ativo ? m.tom : MEVAM_COLORS.muted, whiteSpace: 'nowrap' }}>{m.nome.split(' ')[0]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div style={{ padding: '16px 18px 28px' }}>
+      {/* calendário */}
+      <div style={{ padding: '16px 18px 0' }}>
+        {!membroSel ? (
+          <Card style={{ padding: 20, textAlign: 'center' }}>
+            <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13 }}>👆 Selecione um membro acima para ver o calendário</div>
+          </Card>
+        ) : (
+          <Calendar cursor={cursor} setCursor={setCursor} selected={datas} onToggle={toggle} alreadyBlocked={bloqueadasMembro} state={state} />
+        )}
+      </div>
+
+      {/* campos + lembrete */}
+      <div style={{ padding: '16px 18px 28px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Field label="Motivo (opcional)">
           <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)}
             placeholder="Ex: viagem, trabalho, formatura..."
@@ -419,38 +514,55 @@ function DisponibilidadeScreen({ state, dispatch, usuario, onToast }) {
             style={{ ...inputStyle, resize: 'none', fontFamily: 'Manrope' }} />
         </Field>
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          <Btn variant="ghost" onClick={() => { setDatas(new Set()); setMotivo(''); }}>Limpar</Btn>
+        {/* toggle lembrete */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14, background: lembrete ? 'rgba(243,156,18,0.1)' : MEVAM_COLORS.card, border: `1px solid ${lembrete ? 'rgba(243,156,18,0.4)' : MEVAM_COLORS.border}`, transition: 'all .2s' }}>
+          <div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              🔔 Criar lembrete
+            </div>
+            <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>
+              {mSel ? `Alerta: ${mSel.nome.split(' ')[0]} não poderá servir` : 'Alerta visível para toda a equipe'}
+            </div>
+          </div>
+          <button type="button" onClick={() => setLembrete((v) => !v)}
+            style={{ appearance: 'none', width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, background: lembrete ? '#F39C12' : 'rgba(255,255,255,0.15)', transition: 'background .15s', position: 'relative' }}>
+            <span style={{ position: 'absolute', top: 3, left: lembrete ? 21 : 3, width: 20, height: 20, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left .15s' }} />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variant="ghost" onClick={() => { setDatas(new Set()); setMotivo(''); setLembrete(false); }}>Limpar</Btn>
           <Btn variant="accent" full onClick={salvar} icon={<Icon name="check" size={14}/>}>
-            Informar {datas.size > 0 && `(${datas.size})`}
+            Salvar {datas.size > 0 && `(${datas.size})`}
           </Btn>
         </div>
 
-        {minhasBloqueadas.size > 0 && (
-          <div style={{ marginTop: 22 }}>
+        {/* datas bloqueadas do membro selecionado */}
+        {membroSel && bloqueadasMembro.size > 0 && (
+          <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
-              Suas datas bloqueadas ({minhasBloqueadas.size})
+              Bloqueadas para {mSel?.nome?.split(' ')[0]} ({bloqueadasMembro.size})
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[...minhasBloqueadas].sort().map((iso) => {
+              {[...bloqueadasMembro].sort().map((iso) => {
                 const d = formatBRDate(iso);
-                const entry = state.indispo[iso].find((i) => i.membroId === usuario.id);
+                const entry = state.indispo[iso]?.find((i) => i.membroId === membroSel);
                 return (
-                  <div key={iso} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 12px', borderRadius: 12,
-                    background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
-                  }}>
-                    <div style={{ width: 36, textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600 }}>{d.diaSemana.toUpperCase()}</div>
-                      <div style={{ fontSize: 18, color: MEVAM_COLORS.text, fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, lineHeight: 1 }}>{d.dia}</div>
+                  <div key={iso} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}` }}>
+                    <div style={{ width: 38, textAlign: 'center', flexShrink: 0 }}>
+                      <div style={{ fontSize: 9, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase' }}>{d.diaSemana}</div>
+                      <div style={{ fontSize: 19, color: MEVAM_COLORS.text, fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, lineHeight: 1 }}>{d.dia}</div>
+                      <div style={{ fontSize: 9, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase' }}>{d.mes}</div>
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>{d.diaSemana}, {d.dia} de {d.mes}</div>
-                      <div style={{ fontSize: 11, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>{entry?.motivo || 'Sem motivo informado'}</div>
+                      <div style={{ fontSize: 11, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', marginTop: 1 }}>{entry?.motivo || 'Sem motivo'}</div>
                     </div>
-                    <button onClick={() => dispatch({ type: 'remove_indispo', usuarioId: usuario.id, iso })}
-                      style={{ background: 'transparent', border: 'none', color: MEVAM_COLORS.mutedSoft, cursor: 'pointer', padding: 6 }}>
+                    {entry?.lembrete && (
+                      <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.14)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>🔔</span>
+                    )}
+                    <button onClick={() => dispatch({ type: 'remove_indispo', usuarioId: membroSel, iso })}
+                      style={{ background: 'transparent', border: 'none', color: MEVAM_COLORS.mutedSoft, cursor: 'pointer', padding: 6, flexShrink: 0 }}>
                       <Icon name="ban" size={14}/>
                     </button>
                   </div>
@@ -829,7 +941,42 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
         </div>
       )}
 
-      {/* aprovar indispos */}
+      {/* lembretes ativos */}
+      {(() => {
+        const lembretes = Object.entries(state.indispo).sort().flatMap(([iso, entries]) =>
+          entries.filter((e) => e.lembrete).map((e) => ({ iso, ...e }))
+        );
+        if (lembretes.length === 0) return null;
+        return (
+          <div style={{ padding: '18px 18px 0' }}>
+            <div style={{ fontSize: 11, color: '#F39C12', fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              🔔 Lembretes ativos ({lembretes.length})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {lembretes.map((e, i) => {
+                const m = state.membros.find((x) => x.id === e.membroId);
+                const d = formatBRDate(e.iso);
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(243,156,18,0.08)', border: '1px solid rgba(243,156,18,0.35)' }}>
+                    <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={36}/>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 700 }}>
+                        {m?.nome} <span style={{ color: MEVAM_COLORS.danger, fontWeight: 600 }}>não poderá servir</span>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>
+                        {d.diaSemana}, {d.dia} de {d.mes}{e.motivo ? ` · ${e.motivo}` : ''}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 18 }}>🔔</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* indisponibilidades registradas */}
       <div style={{ padding: '18px 18px 28px' }}>
         <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
           Indisponibilidades registradas
@@ -840,16 +987,17 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {Object.entries(state.indispo).sort().slice(0, 6).flatMap(([iso, entries]) => entries.map((e, j) => {
+            {Object.entries(state.indispo).sort().slice(0, 8).flatMap(([iso, entries]) => entries.map((e, j) => {
               const m = state.membros.find((x) => x.id === e.membroId);
               const d = formatBRDate(iso);
               return (
-                <div key={iso+j} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: MEVAM_COLORS.card, borderRadius: 10 }}>
-                  <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={28}/>
-                  <div style={{ flex: 1 }}>
+                <div key={iso+j} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: MEVAM_COLORS.card, borderRadius: 12, border: `1px solid ${MEVAM_COLORS.border}` }}>
+                  <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={30}/>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>{m?.nome}</div>
-                    <div style={{ fontSize: 10.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>{d.diaSemana} · {d.dia} {d.mes} · {e.motivo || 'sem motivo'}</div>
+                    <div style={{ fontSize: 11, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', marginTop: 1 }}>{d.diaSemana} · {d.dia} {d.mes}{e.motivo ? ` · ${e.motivo}` : ''}</div>
                   </div>
+                  {e.lembrete && <span style={{ fontSize: 14 }}>🔔</span>}
                 </div>
               );
             }))}

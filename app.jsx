@@ -32,7 +32,7 @@ function reducer(state, action) {
       for (const iso of action.datas) {
         const arr = next[iso] ? [...next[iso]] : [];
         if (!arr.some((x) => x.membroId === action.usuarioId)) {
-          arr.push({ membroId: action.usuarioId, motivo: action.motivo || '' });
+          arr.push({ membroId: action.usuarioId, motivo: action.motivo || '', lembrete: action.lembrete || false });
         }
         next[iso] = arr;
       }
