@@ -20,9 +20,20 @@ const C = window.MEVAM_COLORS = {
 };
 
 // ──────────────────────────────────────────────────────────
-// Avatar (iniciais com gradiente baseado na função)
+// Avatar (iniciais ou foto do perfil)
 // ──────────────────────────────────────────────────────────
-function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false }) {
+function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = null }) {
+  const shadow = ring ? `0 0 0 2.5px ${tom}, 0 0 0 4.5px ${C.bgDeep}` : `0 2px 8px ${tom}33`;
+  if (foto) {
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: 999, overflow: 'hidden', flexShrink: 0,
+        boxShadow: shadow, border: ring ? `2px solid ${tom}` : 'none',
+      }}>
+        <img src={foto} alt={iniciais} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      </div>
+    );
+  }
   return (
     <div style={{
       width: size, height: size, borderRadius: 999,
@@ -30,8 +41,7 @@ function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       color: '#fff', fontWeight: 700, fontSize: size * 0.36,
       letterSpacing: 0.4, fontFamily: 'Manrope, sans-serif',
-      boxShadow: ring ? `0 0 0 2px ${tom}, 0 0 0 4px ${C.bgDeep}` : `0 2px 8px ${tom}33`,
-      flexShrink: 0,
+      boxShadow: shadow, flexShrink: 0,
     }}>
       {iniciais}
     </div>
@@ -210,6 +220,7 @@ function Icon({ name, size = 18 }) {
     case 'clock':    return (<svg width={s} height={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" {...stroke}/><path d="M12 7v5l3 2" {...stroke}/></svg>);
     case 'mic':      return (<svg width={s} height={s} viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" {...stroke}/><path d="M5 11a7 7 0 0014 0M12 18v3" {...stroke}/></svg>);
     case 'person':   return (<svg width={s} height={s} viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" {...stroke}/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" {...stroke}/></svg>);
+    case 'camera':   return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" {...stroke}/><circle cx="12" cy="13" r="4" {...stroke}/></svg>);
     case 'wand':     return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M4 20L16 8l2 2L6 22 4 20zM17 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" {...stroke}/></svg>);
     case 'pin':      return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M12 21s-7-6-7-12a7 7 0 0114 0c0 6-7 12-7 12z" {...stroke}/><circle cx="12" cy="9" r="2.5" {...stroke}/></svg>);
     default: return null;

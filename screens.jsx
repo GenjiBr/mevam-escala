@@ -331,7 +331,7 @@ function CultoCard({ culto, state, usuarioId }) {
           {cobertura.map((x, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {x.membro ? (
-                <Avatar iniciais={x.membro.iniciais} tom={x.membro.tom} size={30} />
+                <Avatar iniciais={x.membro.iniciais} tom={x.membro.tom} size={30} foto={x.membro.foto} />
               ) : (
                 <div style={{ width: 30, height: 30, borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: `1px dashed ${MEVAM_COLORS.borderHi}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.mutedSoft }}>
                   <Icon name="plus" size={14}/>
@@ -486,7 +486,7 @@ function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
             return (
               <button key={m.id} onClick={() => { setMembroSel(m.id); setDatas(new Set()); }}
                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 12px', borderRadius: 14, flexShrink: 0, cursor: 'pointer', background: ativo ? m.tom + '22' : MEVAM_COLORS.card, border: `1.5px solid ${ativo ? m.tom : MEVAM_COLORS.border}`, transition: 'all .15s', minWidth: 64 }}>
-                <Avatar iniciais={m.iniciais} tom={m.tom} size={36} ring={ativo} />
+                <Avatar iniciais={m.iniciais} tom={m.tom} size={36} ring={ativo} foto={m.foto} />
                 <span style={{ fontSize: 10.5, fontFamily: 'Manrope', fontWeight: 600, color: ativo ? m.tom : MEVAM_COLORS.muted, whiteSpace: 'nowrap' }}>{m.nome.split(' ')[0]}</span>
               </button>
             );
@@ -729,7 +729,7 @@ function MembroCard({ membro, state, onClick, self }) {
   return (
     <Card accent={membro.tom} onClick={onClick} style={{ padding: 14 }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <Avatar iniciais={membro.iniciais} tom={membro.tom} size={44} />
+        <Avatar iniciais={membro.iniciais} tom={membro.tom} size={44} foto={membro.foto} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 14.5, color: MEVAM_COLORS.text }}>{membro.nome}</span>
@@ -792,7 +792,7 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
 
         {/* cabeçalho */}
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <Avatar iniciais={membro.iniciais} tom={membro.tom} size={60} ring />
+          <Avatar iniciais={membro.iniciais} tom={membro.tom} size={60} ring foto={membro.foto} />
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 22, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>{membro.nome}</div>
             <div style={{ marginTop: 6 }}><FuncBadge funcId={membro.func} size="md"/></div>
@@ -1005,7 +1005,7 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
               return (
                 <Card key={i} accent={MEVAM_COLORS.danger} style={{ padding: 12 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <Avatar iniciais={cf.membro?.iniciais || '?'} tom={cf.membro?.tom || '#666'} size={32} />
+                    <Avatar iniciais={cf.membro?.iniciais || '?'} tom={cf.membro?.tom || '#666'} size={32} foto={cf.membro?.foto} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600 }}>
                         {cf.membro?.nome} · indisponível
@@ -1040,7 +1040,7 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
                 const d = formatBRDate(e.iso);
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'rgba(243,156,18,0.08)', border: '1px solid rgba(243,156,18,0.35)' }}>
-                    <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={36}/>
+                    <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={36} foto={m?.foto}/>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 700 }}>
                         {m?.nome} <span style={{ color: MEVAM_COLORS.danger, fontWeight: 600 }}>não poderá servir</span>
@@ -1074,7 +1074,7 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
               const d = formatBRDate(iso);
               return (
                 <div key={iso+j} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: MEVAM_COLORS.card, borderRadius: 12, border: `1px solid ${MEVAM_COLORS.border}` }}>
-                  <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={30}/>
+                  <Avatar iniciais={m?.iniciais || '?'} tom={m?.tom} size={30} foto={m?.foto}/>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>{m?.nome}</div>
                     <div style={{ fontSize: 11, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', marginTop: 1 }}>{d.diaSemana} · {d.dia} {d.mes}{e.motivo ? ` · ${e.motivo}` : ''}</div>
@@ -1099,7 +1099,47 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [funcPrincipal, setFuncPrincipal] = useState(membro.func || '');
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
   const [tomSel, setTomSel] = useState(membro.tom || '#5B7FFF');
+  const [foto, setFoto] = useState(membro.foto || null);
   const [salvando, setSalvando] = useState(false);
+  const fileRef = useRef(null);
+
+  // comprime a imagem para ~200x200 JPEG antes de salvar no localStorage
+  const comprimirFoto = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 240;
+          let { width, height } = img;
+          if (width > height) { if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; } }
+          else { if (height > MAX) { width = Math.round(width * MAX / height); height = MAX; } }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { onToast('Imagem muito grande (máx 5 MB)', 'warn'); return; }
+    const base64 = await comprimirFoto(file);
+    setFoto(base64);
+    dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: base64 } });
+    onToast('Foto atualizada!', 'ok');
+  };
+
+  const removerFoto = () => {
+    setFoto(null);
+    dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: null } });
+    onToast('Foto removida', 'ok');
+  };
 
   const cores = ['#5B7FFF','#F39C12','#E67E22','#8E44AD','#E74C3C','#27AE60','#2980B9','#1ABC9C','#EC4899','#3B6FB5','#EF4444','#6366F1'];
   const todasFuncoes = Object.entries(window.FUNCOES);
@@ -1116,7 +1156,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     if (!funcPrincipal) { onToast('Selecione uma função principal', 'warn'); return; }
     const ini = iniciais(nome);
     const secundariasLimpas = funcsSecundarias.filter((f) => f !== funcPrincipal);
-    dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel } });
+    dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel, foto } });
     onUpdateUsuario({ nome: nome.trim() });
     setSalvando(true);
     setTimeout(() => setSalvando(false), 1200);
@@ -1130,12 +1170,37 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
 
       {/* hero do perfil */}
       <div style={{ padding: '32px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, background: `radial-gradient(80% 50% at 50% 0%, ${tomSel}22 0%, transparent 70%)`, position: 'relative' }}>
+
+        {/* input de foto oculto */}
+        <input ref={fileRef} type="file" accept="image/*" capture="user"
+          style={{ display: 'none' }} onChange={handleFotoChange} />
+
         <div style={{ position: 'relative' }}>
-          <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={84} ring />
-          <div style={{ position: 'absolute', bottom: -2, right: -2, width: 26, height: 26, borderRadius: 999, background: tomSel, border: '2px solid #04081A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="edit" size={12} />
-          </div>
+          {/* avatar clicável */}
+          <button onClick={() => fileRef.current?.click()}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: 999, display: 'block' }}>
+            <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={90} ring foto={foto} />
+            {/* overlay câmera */}
+            <div style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'rgba(0,0,0,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = 0}>
+              <Icon name="camera" size={22} />
+            </div>
+          </button>
+
+          {/* badge câmera fixo no canto */}
+          <button onClick={() => fileRef.current?.click()}
+            style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 999, background: tomSel, border: '2.5px solid #04081A', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <Icon name="camera" size={13} />
+          </button>
         </div>
+
+        {/* remover foto */}
+        {foto && (
+          <button onClick={removerFoto} style={{ background: 'none', border: 'none', color: MEVAM_COLORS.danger, fontFamily: 'Manrope', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, marginTop: -6 }}>
+            <Icon name="ban" size={11} /> Remover foto
+          </button>
+        )}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 24, color: MEVAM_COLORS.text, letterSpacing: -0.5 }}>{nome || 'Seu nome'}</div>
           <div style={{ marginTop: 6, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
