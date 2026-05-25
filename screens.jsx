@@ -35,7 +35,9 @@ function LoginScreen({ onLogin }) {
       {/* logo */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 10, position: 'relative' }}>
         <img src="assets/mevam-logo.png" alt="MEVAM" style={{
-          width: 168, opacity: 0.96, filter: 'drop-shadow(0 6px 24px rgba(91,127,255,0.4))',
+          width: 168,
+          mixBlendMode: 'screen',
+          filter: 'drop-shadow(0 6px 24px rgba(91,127,255,0.5))',
         }} />
       </div>
 
