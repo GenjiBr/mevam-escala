@@ -1090,6 +1090,151 @@ function AdminScreen({ state, dispatch, usuario, onToast }) {
   );
 }
 
+// ════════════════════════════════════════════════════════════
+// PERFIL
+// ════════════════════════════════════════════════════════════
+function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsuario }) {
+  const membro = state.membros.find((m) => m.id === usuario.id) || {};
+  const [nome, setNome] = useState(membro.nome || usuario.nome || '');
+  const [funcPrincipal, setFuncPrincipal] = useState(membro.func || '');
+  const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
+  const [tomSel, setTomSel] = useState(membro.tom || '#5B7FFF');
+  const [salvando, setSalvando] = useState(false);
+
+  const cores = ['#5B7FFF','#F39C12','#E67E22','#8E44AD','#E74C3C','#27AE60','#2980B9','#1ABC9C','#EC4899','#3B6FB5','#EF4444','#6366F1'];
+  const todasFuncoes = Object.entries(window.FUNCOES);
+
+  const iniciais = (n) => n.trim().split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
+  const toggleSecundaria = (fid) => {
+    if (fid === funcPrincipal) return;
+    setFuncsSecundarias((prev) => prev.includes(fid) ? prev.filter((f) => f !== fid) : [...prev, fid]);
+  };
+
+  const salvar = () => {
+    if (!nome.trim()) { onToast('Informe o nome', 'warn'); return; }
+    if (!funcPrincipal) { onToast('Selecione uma função principal', 'warn'); return; }
+    const ini = iniciais(nome);
+    const secundariasLimpas = funcsSecundarias.filter((f) => f !== funcPrincipal);
+    dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel } });
+    onUpdateUsuario({ nome: nome.trim() });
+    setSalvando(true);
+    setTimeout(() => setSalvando(false), 1200);
+    onToast('Perfil atualizado com sucesso!', 'ok');
+  };
+
+  const primeiroNome = nome.split(' ')[0] || 'Você';
+
+  return (
+    <div style={{ ...screenWrap, padding: '0 0 120px' }}>
+
+      {/* hero do perfil */}
+      <div style={{ padding: '32px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, background: `radial-gradient(80% 50% at 50% 0%, ${tomSel}22 0%, transparent 70%)`, position: 'relative' }}>
+        <div style={{ position: 'relative' }}>
+          <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={84} ring />
+          <div style={{ position: 'absolute', bottom: -2, right: -2, width: 26, height: 26, borderRadius: 999, background: tomSel, border: '2px solid #04081A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="edit" size={12} />
+          </div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 24, color: MEVAM_COLORS.text, letterSpacing: -0.5 }}>{nome || 'Seu nome'}</div>
+          <div style={{ marginTop: 6, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontFamily: 'Manrope', fontWeight: 600, color: '#A8BBFF', background: MEVAM_COLORS.accentSoft, padding: '3px 10px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              {usuario.perfil === 'admin' ? '🛡️ Admin' : '👤 Membro'}
+            </span>
+            {funcPrincipal && <FuncBadge funcId={funcPrincipal} />}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+        {/* ── Dados pessoais ── */}
+        <div>
+          <SectionLabel icon="person">Dados pessoais</SectionLabel>
+          <Card style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Field label="Nome completo">
+              <input value={nome} onChange={(e) => setNome(e.target.value)}
+                placeholder="Seu nome completo"
+                style={inputStyle} />
+            </Field>
+            <div>
+              <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>Cor do avatar</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {cores.map((c) => (
+                  <button key={c} onClick={() => setTomSel(c)} style={{ width: 32, height: 32, borderRadius: 999, background: c, border: tomSel === c ? `3px solid #fff` : '2px solid transparent', cursor: 'pointer', boxShadow: tomSel === c ? `0 0 10px ${c}` : 'none', transition: 'all .15s' }} />
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* ── Função principal ── */}
+        <div>
+          <SectionLabel icon="wand">Função principal</SectionLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {todasFuncoes.map(([fid, f]) => {
+              const ativo = funcPrincipal === fid;
+              return (
+                <button key={fid} onClick={() => { setFuncPrincipal(fid); setFuncsSecundarias((s) => s.filter((x) => x !== fid)); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, transition: 'all .15s', background: ativo ? f.color + '28' : MEVAM_COLORS.card, border: `1.5px solid ${ativo ? f.color : MEVAM_COLORS.border}`, color: ativo ? f.color : MEVAM_COLORS.muted }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: ativo ? f.color : MEVAM_COLORS.border, boxShadow: ativo ? `0 0 6px ${f.color}` : 'none', flexShrink: 0 }} />
+                  {f.label}
+                  {ativo && <span style={{ fontSize: 11 }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Funções secundárias ── */}
+        <div>
+          <SectionLabel icon="sparkles">Funções secundárias <span style={{ fontSize: 10.5, color: MEVAM_COLORS.mutedSoft, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(pode marcar várias)</span></SectionLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {todasFuncoes.filter(([fid]) => fid !== funcPrincipal).map(([fid, f]) => {
+              const ativo = funcsSecundarias.includes(fid);
+              return (
+                <button key={fid} onClick={() => toggleSecundaria(fid)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 999, cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, transition: 'all .15s', background: ativo ? f.color + '20' : MEVAM_COLORS.card, border: `1.5px solid ${ativo ? f.color + 'AA' : MEVAM_COLORS.border}`, color: ativo ? f.color : MEVAM_COLORS.muted }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: ativo ? f.color : MEVAM_COLORS.border, flexShrink: 0 }} />
+                  {f.label}
+                  {ativo && <span style={{ fontSize: 11 }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Botão salvar ── */}
+        <Btn variant="accent" full icon={salvando ? null : <Icon name="check" size={15}/>} onClick={salvar}
+          style={{ padding: '14px 18px', fontSize: 15, borderRadius: 16 }}>
+          {salvando ? '✓ Salvo!' : 'Salvar alterações'}
+        </Btn>
+
+        {/* ── Sair ── */}
+        <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, paddingTop: 18 }}>
+          <Btn variant="danger" full icon={<Icon name="logout" size={15}/>} onClick={onLogout}
+            style={{ borderRadius: 16 }}>
+            Sair da conta
+          </Btn>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ icon, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+        <Icon name={icon} size={14}/>
+      </div>
+      <span style={{ fontFamily: 'Manrope', fontSize: 12, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{children}</span>
+    </div>
+  );
+}
+
 function Stat({ label, value, accent, sub }) {
   return (
     <Card accent={accent} style={{ padding: 14 }}>
@@ -1105,4 +1250,4 @@ const screenWrap = {
   minHeight: '100dvh',
 };
 
-Object.assign(window, { LoginScreen, EscalaScreen, DisponibilidadeScreen, MembrosScreen, AdminScreen });
+Object.assign(window, { LoginScreen, EscalaScreen, DisponibilidadeScreen, MembrosScreen, AdminScreen, PerfilScreen });

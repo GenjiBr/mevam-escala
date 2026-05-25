@@ -93,10 +93,11 @@ function reducer(state, action) {
 // ════════════════════════════════════════════════════════════
 function TabBar({ tab, setTab, perfil }) {
   const tabs = [
-    { id: 'escala',         label: 'Escala',        icon: 'calendar' },
-    { id: 'disponibilidade',label: 'Disponível',    icon: 'ban' },
-    { id: 'membros',        label: 'Equipe',        icon: 'users' },
-    { id: 'admin',          label: 'Admin',         icon: 'shield' },
+    { id: 'escala',         label: 'Escala',    icon: 'calendar' },
+    { id: 'disponibilidade',label: 'Bloqueio',  icon: 'ban'      },
+    { id: 'membros',        label: 'Equipe',    icon: 'users'    },
+    { id: 'perfil',         label: 'Perfil',    icon: 'person'   },
+    { id: 'admin',          label: 'Admin',     icon: 'shield'   },
   ];
   return (
     <div style={{
@@ -160,13 +161,15 @@ function App() {
   const showToast = (msg, kind = 'ok') => setToast({ msg, kind });
 
   const handleLogin = ({ nome, perfil }) => {
-    // se for admin demo, usa Lucas. Senão, criamos um membro do usuário ou usamos Bruno
     let id = 'm1';
     const match = state.membros.find((m) => m.nome.toLowerCase() === nome.toLowerCase());
     if (match) id = match.id;
     else if (perfil === 'membro') id = 'm4';
     setUsuario({ id, nome: match?.nome || nome, perfil });
   };
+
+  const handleLogout = () => { setUsuario(null); setTab('escala'); };
+  const handleUpdateUsuario = (updates) => setUsuario((u) => ({ ...u, ...updates }));
 
   const handleShare = () => {
     const proximo = [...state.cultos].sort((a,b)=>a.data.localeCompare(b.data))[0];
@@ -190,6 +193,7 @@ function App() {
     escala:           <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} />,
     disponibilidade:  <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     membros:          <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
+    perfil:           <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
     admin:            <AdminScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
   };
 
