@@ -1812,11 +1812,200 @@ function AddCultoModal({ onClose, onConfirm }) {
 }
 
 // ════════════════════════════════════════════════════════════
+// MODAL — Gerenciar Administradores
+// ════════════════════════════════════════════════════════════
+function GerenciarAdminsModal({ state, dispatch, equipe, usuario, onToast, onClose }) {
+  const [busca, setBusca] = React.useState('');
+  const [confirmando, setConfirmando] = React.useState(null);
+  const [salvando, setSalvando] = React.useState(false);
+
+  const adminPrincipalId = equipe?.criado_por;
+  const admins = state.membros.filter((m) => m.perfil === 'admin');
+  const membrosNaoAdmin = state.membros.filter((m) => {
+    if (m.perfil === 'admin') return false;
+    if (m.status !== 'ativo') return false;
+    if (!busca.trim()) return true;
+    return m.nome.toLowerCase().includes(busca.trim().toLowerCase());
+  });
+
+  const promoverAdmin = async (membro) => {
+    if (salvando) return;
+    setSalvando(true);
+    try {
+      await dispatch({ type: 'update_membro', id: membro.id, updates: { perfil: 'admin' } });
+      onToast(`${membro.nome} agora é administrador!`, 'ok');
+      setConfirmando(null);
+    } catch (e) {
+      onToast('Erro ao promover: ' + (e.message || 'tente novamente'), 'err');
+    } finally { setSalvando(false); }
+  };
+
+  const removerAdmin = async (membro) => {
+    if (membro.id === adminPrincipalId || salvando) return;
+    setSalvando(true);
+    try {
+      await dispatch({ type: 'update_membro', id: membro.id, updates: { perfil: 'membro' } });
+      onToast(`${membro.nome} removido de administrador.`, 'ok');
+    } catch (e) {
+      onToast('Erro ao remover: ' + (e.message || 'tente novamente'), 'err');
+    } finally { setSalvando(false); }
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(2,5,12,0.88)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 480,
+          background: '#0D1526', borderRadius: '24px 24px 0 0',
+          border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+          padding: '0 0 calc(110px + env(safe-area-inset-bottom))',
+          animation: 'slideUp .25s ease', maxHeight: '84dvh', overflowY: 'auto',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 6px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border }} />
+        </div>
+
+        <div style={{ padding: '0 18px 20px' }}>
+          {/* cabeçalho */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+              <Icon name="shield" size={18}/>
+            </div>
+            <div>
+              <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 20, color: MEVAM_COLORS.text }}>
+                Gerenciar Administradores
+              </div>
+              <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>
+                {admins.length} admin{admins.length !== 1 ? 's' : ''} na equipe
+              </div>
+            </div>
+          </div>
+
+          {/* confirmação inline de promoção */}
+          {confirmando && (
+            <div style={{ padding: 14, borderRadius: 14, background: 'rgba(91,127,255,0.08)', border: `1px solid ${MEVAM_COLORS.accent}44`, marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <Avatar iniciais={confirmando.iniciais} tom={confirmando.tom} size={32} foto={confirmando.foto} />
+                <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, lineHeight: 1.4 }}>
+                  Tornar <span style={{ color: MEVAM_COLORS.accent }}>{confirmando.nome}</span> administrador?
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn variant="ghost" full onClick={() => setConfirmando(null)}>Cancelar</Btn>
+                <Btn variant="accent" full onClick={() => promoverAdmin(confirmando)}>
+                  {salvando ? 'Salvando…' : 'Confirmar'}
+                </Btn>
+              </div>
+            </div>
+          )}
+
+          {/* lista de admins atuais */}
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+            Administradores atuais
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+            {admins.length === 0 && (
+              <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 12.5, textAlign: 'center', padding: '10px 0' }}>Nenhum admin ainda.</div>
+            )}
+            {admins.map((m) => {
+              const isPrincipal = m.id === adminPrincipalId;
+              const isSelf = m.id === usuario.id;
+              return (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 13, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}` }}>
+                  <Avatar iniciais={m.iniciais} tom={m.tom} size={34} foto={m.foto} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600 }}>
+                      {m.nome}{isSelf ? ' (você)' : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginTop: 3 }}>
+                      <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Admin</span>
+                      {isPrincipal && <span style={{ fontSize: 10, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>· criador</span>}
+                    </div>
+                  </div>
+                  {!isPrincipal && !isSelf && (
+                    <button
+                      onClick={() => !salvando && removerAdmin(m)}
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center' }}
+                      title="Remover admin"
+                    >
+                      <Icon name="trash" size={14}/>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* busca + promoção */}
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+            Promover membro a Admin
+          </div>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: MEVAM_COLORS.muted, pointerEvents: 'none' }}>
+              <Icon name="search" size={14}/>
+            </div>
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar membro pelo nome…"
+              style={{
+                width: '100%', padding: '10px 14px 10px 36px', borderRadius: 12,
+                background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+                color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontSize: 14, outline: 'none',
+              }}
+            />
+          </div>
+
+          {membrosNaoAdmin.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '14px 0', color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 12.5 }}>
+              {busca.trim() ? 'Nenhum membro encontrado.' : 'Todos os membros ativos já são administradores.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {membrosNaoAdmin.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => !confirmando && setConfirmando(m)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 12px', borderRadius: 13,
+                    background: confirmando?.id === m.id ? MEVAM_COLORS.accentSoft : MEVAM_COLORS.card,
+                    border: `1px solid ${confirmando?.id === m.id ? MEVAM_COLORS.accent + '66' : MEVAM_COLORS.border}`,
+                    cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
+                  }}
+                >
+                  <Avatar iniciais={m.iniciais} tom={m.tom} size={34} foto={m.foto} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600 }}>{m.nome}</div>
+                    <div style={{ marginTop: 3 }}><FuncBadge funcId={m.func} /></div>
+                  </div>
+                  <div style={{ fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, padding: '4px 10px', borderRadius: 999, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44` }}>
+                    <Icon name="plus" size={11}/> Admin
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
 // ADMIN SCREEN
 // ════════════════════════════════════════════════════════════
 function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala, onAddCultoManual }) {
   const isAdmin = usuario.perfil === 'admin';
   const [showAddCulto, setShowAddCulto] = React.useState(false);
+  const [showAdmins, setShowAdmins] = React.useState(false);
 
   // métricas
   const ativos = state.membros.filter((m) => m.status === 'ativo').length;
@@ -1896,7 +2085,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
               <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={() => {
                 onGerarEscala && onGerarEscala();
               }}>Gerar agora</Btn>
-              <Btn variant="ghost" icon={<Icon name="edit" size={14}/>} onClick={() => onToast('Edição manual: arraste membros no detalhe do culto', 'info')}>Editar</Btn>
+              <Btn variant="ghost" icon={<Icon name="shield" size={14}/>} style={{ borderColor: `${MEVAM_COLORS.accent}55`, color: '#A8BBFF', flexShrink: 0 }} onClick={() => setShowAdmins(true)}>Admin +</Btn>
             </div>
           </div>
         </div>
@@ -2039,6 +2228,18 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
         <AddCultoModal
           onClose={() => setShowAddCulto(false)}
           onConfirm={(payload) => { onAddCultoManual && onAddCultoManual(payload); }}
+        />
+      )}
+
+      {/* modal gerenciar admins */}
+      {showAdmins && (
+        <GerenciarAdminsModal
+          state={state}
+          dispatch={dispatch}
+          equipe={equipe}
+          usuario={usuario}
+          onToast={onToast}
+          onClose={() => setShowAdmins(false)}
         />
       )}
 
