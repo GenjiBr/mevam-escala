@@ -67,11 +67,8 @@ window.CULTOS_INICIAIS = [
   // Sexta e sábado NÃO são gerados automaticamente — adicionados pelo admin
 ];
 
-// indisponibilidades exemplo (ISO date → array de membro ids)
-window.INDISPO_INICIAIS = {
-  [fmt(nextWeekday(HOJE, 0, 1))]: [{ membroId: 'm4', motivo: 'Viagem família' }],
-  [fmt(nextWeekday(HOJE, 3, 1))]: [{ membroId: 'm4', motivo: 'Viagem família' }],
-};
+// indisponibilidades iniciais (vazio — dados reais vêm do Supabase)
+window.INDISPO_INICIAIS = {};
 
 window.USUARIO_PADRAO = { id: 'm1', nome: 'Lucas Andrade', perfil: 'admin' };
 
