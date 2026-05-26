@@ -1223,12 +1223,21 @@ function AdminScreen({ state, dispatch, usuario, onToast, onGerarEscala }) {
 function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsuario }) {
   const membro = state.membros.find((m) => m.id === usuario.id) || {};
   const [nome, setNome] = useState(membro.nome || usuario.nome || '');
-  const [funcPrincipal, setFuncPrincipal] = useState(membro.func || '');
+  const [funcPrincipal, setFuncPrincipal] = useState(membro.func || 'vocal_backing');
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
   const [tomSel, setTomSel] = useState(membro.tom || '#5B7FFF');
   const [foto, setFoto] = useState(membro.foto || null);
   const [salvando, setSalvando] = useState(false);
   const fileRef = useRef(null);
+
+  // sincroniza quando state.membros carrega depois do render inicial
+  useEffect(() => {
+    if (membro.nome) { setNome(membro.nome); }
+    if (membro.func) { setFuncPrincipal(membro.func); }
+    if (membro.secundarias) { setFuncsSecundarias(membro.secundarias); }
+    if (membro.tom) { setTomSel(membro.tom); }
+    if (membro.foto !== undefined) { setFoto(membro.foto); }
+  }, [membro.id]);
 
   // comprime a imagem para ~200x200 JPEG antes de salvar no localStorage
   const comprimirFoto = (file) => {
@@ -1278,16 +1287,21 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     setFuncsSecundarias((prev) => prev.includes(fid) ? prev.filter((f) => f !== fid) : [...prev, fid]);
   };
 
-  const salvar = () => {
+  const salvar = async () => {
     if (!nome.trim()) { onToast('Informe o nome', 'warn'); return; }
     if (!funcPrincipal) { onToast('Selecione uma função principal', 'warn'); return; }
     const ini = iniciais(nome);
     const secundariasLimpas = funcsSecundarias.filter((f) => f !== funcPrincipal);
-    dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel, foto } });
-    onUpdateUsuario({ nome: nome.trim() });
     setSalvando(true);
-    setTimeout(() => setSalvando(false), 1200);
-    onToast('Perfil atualizado com sucesso!', 'ok');
+    try {
+      await dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel, foto } });
+      onUpdateUsuario({ nome: nome.trim() });
+      onToast('Perfil atualizado com sucesso!', 'ok');
+    } catch (e) {
+      onToast('Erro ao salvar: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setTimeout(() => setSalvando(false), 1000);
+    }
   };
 
   const primeiroNome = nome.split(' ')[0] || 'Você';

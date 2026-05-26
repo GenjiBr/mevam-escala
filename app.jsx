@@ -168,32 +168,31 @@ function App() {
   useEffectApp(() => {
     const { data: { subscription } } = SB.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // monta nome/id a partir do email como fallback
-        const partes = (session.user.email || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
+        const emailUsuario = session.user.email;
+        const partes = (emailUsuario || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
         const nomeAuto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ').trim();
         const idFallback = 'u_' + session.user.id.replace(/-/g, '').slice(0, 10);
 
-        const { data: membro } = await SB.from('membros')
-          .select('*').eq('email', session.user.email).maybeSingle();
+        // Tenta encontrar o membro (com até 3 tentativas — aguarda trigger do Supabase)
+        let membro = null;
+        for (let i = 0; i < 3 && !membro; i++) {
+          if (i > 0) await new Promise((r) => setTimeout(r, 900));
+          const { data } = await SB.from('membros').select('*').eq('email', emailUsuario).maybeSingle();
+          membro = data;
+        }
 
-        if (membro) {
-          // perfil encontrado normalmente
-          setUsuario({ id: membro.id, nome: membro.nome, perfil: membro.perfil || 'membro' });
-        } else {
-          // não encontrou (trigger ainda não rodou ou RLS bloqueou insert)
-          // deixa entrar com dados básicos e tenta inserir em background
-          setUsuario({ id: idFallback, nome: nomeAuto, perfil: 'membro' });
-          sbInsertMembro({
-            id: idFallback, nome: nomeAuto, email: session.user.email,
+        if (!membro) {
+          // Trigger não rodou — insere manualmente e usa como fallback
+          const novoMembro = {
+            id: idFallback, nome: nomeAuto, email: emailUsuario,
             iniciais: nomeAuto.split(' ').map((x) => x[0]).filter(Boolean).join('').toUpperCase().slice(0, 2),
             func: 'vocal_backing', secundarias: [], status: 'ativo', tom: '#5B7FFF', perfil: 'membro',
-          }).then(async () => {
-            // após inserir, recarrega o perfil para pegar o id correto
-            const { data: m2 } = await SB.from('membros')
-              .select('*').eq('email', session.user.email).maybeSingle();
-            if (m2) setUsuario({ id: m2.id, nome: m2.nome, perfil: m2.perfil || 'membro' });
-          });
+          };
+          await sbInsertMembro(novoMembro);
+          membro = novoMembro;
         }
+
+        setUsuario({ id: membro.id, nome: membro.nome, perfil: membro.perfil || 'membro' });
       } else {
         setUsuario(null);
       }

@@ -49,8 +49,13 @@ window.sbGetIndispo = async () => {
    Escrita
 ───────────────────────────────────────────────── */
 window.sbUpdateMembro = async (id, updates) => {
-  const { error } = await SB.from('membros').update(updates).eq('id', id);
-  if (error) console.error('sbUpdateMembro:', error.message);
+  const { error, count } = await SB.from('membros').update(updates, { count: 'exact' }).eq('id', id);
+  if (error) { console.error('sbUpdateMembro:', error.message); throw new Error(error.message); }
+  if (count === 0) {
+    // linha não existe — tenta inserir como upsert
+    const { error: e2 } = await SB.from('membros').upsert({ id, ...updates }, { onConflict: 'id' });
+    if (e2) { console.error('sbUpdateMembro upsert:', e2.message); throw new Error(e2.message); }
+  }
 };
 
 window.sbInsertMembro = async (membro) => {
