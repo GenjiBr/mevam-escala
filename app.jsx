@@ -164,7 +164,7 @@ function App() {
       sun.setDate(hoje.getDate() + sunDiff + w * 7);
       const sunISO = fmtISO(sun);
       if (!existentes.find((c) => c.data === sunISO && c.titulo === 'Culto da Família')) {
-        existentes.push({ id: `dom_${sunISO}`, data: sunISO, horario: '09:00', titulo: 'Culto da Família', cor: '#3B82F6', escalados: escaladosVazios() });
+        existentes.push({ id: `dom_${sunISO}`, data: sunISO, horario: '19:00', titulo: 'Culto da Família', cor: '#3B82F6', escalados: escaladosVazios() });
       }
     }
 

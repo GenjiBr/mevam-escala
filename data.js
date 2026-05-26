@@ -61,7 +61,7 @@ window.CULTOS_INICIAIS = [
   })),
   // Domingos — Culto da Família (fixo)
   ...getNextOccurrences(0, 4).map((data) => ({
-    id: `dom_${data}`, data, horario: '09:00', titulo: 'Culto da Família',
+    id: `dom_${data}`, data, horario: '19:00', titulo: 'Culto da Família',
     cor: '#3B82F6', escalados: { ...ESC_VAZIO },
   })),
   // Sexta e sábado NÃO são gerados automaticamente — adicionados pelo admin
