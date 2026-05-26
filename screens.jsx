@@ -626,7 +626,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
       {/* Lista de cultos */}
       <div style={{ padding: '4px 18px 28px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {cultos.map((c) => (
-          <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} />
+          <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} usuario={usuario} dispatch={dispatch} onToast={onToast} />
         ))}
       </div>
       {showCodigo && <CodigoModal equipe={equipe} onClose={() => setShowCodigo(false)} />}
@@ -786,12 +786,123 @@ function CultoHeroCard({ culto, usuarioId, state }) {
   );
 }
 
-function CultoCard({ culto, state, usuarioId }) {
+// ────────────────────────────────────────────────────────────
+// Modal para escolher membro de um slot
+// ────────────────────────────────────────────────────────────
+function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
+  const f = (window.FUNCOES || {})[funcId] || {};
+  const indispoIds = (state.indispo[culto.data] || []).map((i) => i.membroId);
+  const membroAtual = culto.escalados[funcId] || null;
+
+  const candidatos = state.membros.filter((m) =>
+    m.status === 'ativo' &&
+    (m.func === funcId || (m.secundarias || []).includes(funcId)) &&
+    !indispoIds.includes(m.id)
+  );
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(2,5,12,0.88)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 480,
+          background: '#0D1526', borderRadius: '24px 24px 0 0',
+          border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+          padding: '0 0 calc(110px + env(safe-area-inset-bottom))',
+          animation: 'slideUp .25s ease',
+          maxHeight: '78dvh', overflowY: 'auto',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 6px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border }} />
+        </div>
+
+        <div style={{ padding: '0 18px 16px' }}>
+          {/* cabeçalho */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <FuncBadge funcId={funcId} />
+            <span style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 19, color: MEVAM_COLORS.text }}>
+              Escalar — {f.label || funcId}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginBottom: 16 }}>
+            {candidatos.length === 0
+              ? 'Nenhum membro disponível para essa função nessa data.'
+              : `${candidatos.length} membro${candidatos.length > 1 ? 's' : ''} disponível${candidatos.length > 1 ? 'is' : ''}`}
+          </div>
+
+          {/* botão remover (só se slot preenchido) */}
+          {membroAtual && (
+            <button
+              onClick={() => { onSelect(null); onClose(); }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 14px', borderRadius: 12, marginBottom: 10,
+                background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.22)',
+                cursor: 'pointer', color: MEVAM_COLORS.danger,
+                fontFamily: 'Manrope', fontSize: 13, fontWeight: 600,
+              }}
+            >
+              <div style={{ width: 32, height: 32, borderRadius: 999, background: 'rgba(239,68,68,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="x" size={14} />
+              </div>
+              Remover do slot
+            </button>
+          )}
+
+          {/* lista de candidatos */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {candidatos.map((m) => {
+              const isAtual = m.id === membroAtual;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => { onSelect(m.id); onClose(); }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px', borderRadius: 14,
+                    background: isAtual ? MEVAM_COLORS.accentSoft : MEVAM_COLORS.card,
+                    border: `1px solid ${isAtual ? MEVAM_COLORS.accent : MEVAM_COLORS.border}`,
+                    cursor: 'pointer', textAlign: 'left',
+                    transition: 'background .15s',
+                  }}
+                >
+                  <Avatar iniciais={m.iniciais} tom={m.tom} size={36} foto={m.foto} ring={isAtual} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>
+                      {m.nome}
+                      {isAtual && <span style={{ fontSize: 10, color: MEVAM_COLORS.accent, marginLeft: 6, fontWeight: 700 }}>• atual</span>}
+                    </div>
+                    <div style={{ marginTop: 3 }}><FuncBadge funcId={m.func} /></div>
+                  </div>
+                  {isAtual && <Icon name="check" size={16} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Card de culto
+// ────────────────────────────────────────────────────────────
+function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
   const [open, setOpen] = useState(false);
+  const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
+  const [salvando, setSalvando] = useState(false);
+
+  const isAdmin = usuario?.perfil === 'admin';
   const data = formatBRDate(culto.data);
   const indispoIds = (state.indispo[culto.data] || []).map((i) => i.membroId);
 
-  // verificar coberturas + conflitos
+  // coberturas + conflitos
   const cobertura = [];
   let conflitos = 0;
   for (const [fid, val] of Object.entries(culto.escalados)) {
@@ -809,8 +920,26 @@ function CultoCard({ culto, state, usuarioId }) {
   const slotsVazios = cobertura.filter((x) => !x.membro).length;
   const meu = cobertura.some((x) => x.membro && x.membro.id === usuarioId);
 
+  // salva escalado no estado local + Supabase
+  const handleSave = async (funcId, membroId) => {
+    if (salvando) return;
+    setSalvando(true);
+    const novoEscalados = { ...culto.escalados, [funcId]: membroId || null };
+    const cultosNovos = state.cultos.map((c) => c.id === culto.id ? { ...c, escalados: novoEscalados } : c);
+    dispatch({ type: 'set_cultos', cultos: cultosNovos });
+    try {
+      await sbUpsertCulto({ ...culto, escalados: novoEscalados });
+      onToast && onToast(membroId ? 'Membro escalado! ✓' : 'Slot liberado', 'ok');
+    } catch (e) {
+      onToast && onToast('Erro ao salvar no banco', 'err');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   return (
     <Card accent={culto.cor} style={{ padding: 0 }}>
+      {/* cabeçalho clicável */}
       <div onClick={() => setOpen((v) => !v)} style={{ padding: 16, cursor: 'pointer', display: 'flex', gap: 14, alignItems: 'center' }}>
         <div style={{
           width: 48, padding: '6px 0', borderRadius: 10,
@@ -826,7 +955,6 @@ function CultoCard({ culto, state, usuarioId }) {
             {meu && <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>Você</span>}
           </div>
           <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>{culto.horario} · {cobertura.filter(x => x.membro).length} escalados</div>
-          {/* dots de funções */}
           <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {cobertura.filter(x => x.membro).slice(0, 11).map((x, i) => (
               <FuncDot key={i} funcId={x.funcId} size={7} />
@@ -847,32 +975,93 @@ function CultoCard({ culto, state, usuarioId }) {
           </span>
         </div>
       </div>
+
+      {/* lista expandida de slots */}
       {open && (
-        <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {cobertura.map((x, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {x.membro ? (
-                <Avatar iniciais={x.membro.iniciais} tom={x.membro.tom} size={30} foto={x.membro.foto} />
-              ) : (
-                <div style={{ width: 30, height: 30, borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: `1px dashed ${MEVAM_COLORS.borderHi}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.mutedSoft }}>
-                  <Icon name="plus" size={14}/>
+        <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {cobertura.map((x, i) => {
+            const clicavel = isAdmin;
+            return (
+              <div
+                key={i}
+                onClick={clicavel ? () => setSlotPicker({ funcId: x.funcId }) : undefined}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px', borderRadius: 12,
+                  background: clicavel && !x.membro ? 'rgba(91,127,255,0.04)' : 'transparent',
+                  border: clicavel && !x.membro ? `1px dashed ${MEVAM_COLORS.accent}44` : '1px solid transparent',
+                  cursor: clicavel ? 'pointer' : 'default',
+                  transition: 'background .15s',
+                }}
+              >
+                {/* avatar ou placeholder */}
+                {x.membro ? (
+                  <Avatar iniciais={x.membro.iniciais} tom={x.membro.tom} size={30} foto={x.membro.foto} />
+                ) : (
+                  <div style={{
+                    width: 30, height: 30, borderRadius: 999, flexShrink: 0,
+                    background: 'rgba(91,127,255,0.08)', border: `1px dashed ${MEVAM_COLORS.accent}55`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.accent,
+                  }}>
+                    <Icon name="plus" size={13}/>
+                  </div>
+                )}
+
+                {/* nome + badge */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Manrope', fontSize: 13, color: x.membro ? MEVAM_COLORS.text : MEVAM_COLORS.muted, fontWeight: x.membro ? 600 : 500 }}>
+                      {x.membro ? x.membro.nome : 'Slot vazio'}
+                    </span>
+                    {x.indispo && <Icon name="ban" size={11}/>}
+                  </div>
+                  <div style={{ marginTop: 2 }}><FuncBadge funcId={x.funcId}/></div>
                 </div>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'Manrope', fontSize: 13, color: x.membro ? MEVAM_COLORS.text : MEVAM_COLORS.mutedSoft, fontWeight: 600 }}>
-                    {x.membro ? x.membro.nome : 'Slot vazio'}
+
+                {/* botão ✕ para remover (admin, slot preenchido) */}
+                {isAdmin && x.membro && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleSave(x.funcId, null); }}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`,
+                      borderRadius: 8, padding: '4px 5px', cursor: 'pointer',
+                      color: MEVAM_COLORS.mutedSoft, display: 'flex', alignItems: 'center',
+                      flexShrink: 0,
+                    }}
+                    title="Remover do slot"
+                  >
+                    <Icon name="x" size={13}/>
+                  </button>
+                )}
+
+                {/* badge conflito */}
+                {x.indispo && (
+                  <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.danger, background: MEVAM_COLORS.dangerSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6, flexShrink: 0 }}>
+                    Conflito
                   </span>
-                  {x.indispo && <Icon name="ban" size={12}/>}
-                </div>
-                <div style={{ marginTop: 2 }}><FuncBadge funcId={x.funcId}/></div>
+                )}
               </div>
-              {x.indispo && (
-                <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.danger, background: MEVAM_COLORS.dangerSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>Conflito</span>
-              )}
+            );
+          })}
+
+          {/* dica visual para admin */}
+          {isAdmin && slotsVazios > 0 && (
+            <div style={{ marginTop: 4, fontSize: 11, color: MEVAM_COLORS.accent, fontFamily: 'Manrope', textAlign: 'center', opacity: 0.7 }}>
+              Toque em um slot vazio para escalar um membro
             </div>
-          ))}
+          )}
         </div>
+      )}
+
+      {/* modal de seleção */}
+      {slotPicker && (
+        <SlotPickerModal
+          funcId={slotPicker.funcId}
+          culto={culto}
+          state={state}
+          onSelect={(membroId) => handleSave(slotPicker.funcId, membroId)}
+          onClose={() => setSlotPicker(null)}
+        />
       )}
     </Card>
   );
