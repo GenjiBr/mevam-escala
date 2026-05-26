@@ -585,15 +585,42 @@ const navBtnStyle = { width: 30, height: 30, borderRadius: 8, background: MEVAM_
 function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick }) {
   const [showCodigo, setShowCodigo] = useState(false);
   const [showCalendario, setShowCalendario] = useState(false);
-  const cultos = useMemo(() => {
-    return [...state.cultos].sort((a, b) => a.data.localeCompare(b.data));
-  }, [state.cultos]);
-
-  const meuProximo = useMemo(() => {
-    return cultos.find((c) => Object.values(c.escalados).flat().includes(usuario.id));
-  }, [cultos, usuario.id]);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const membro = state.membros.find((m) => m.id === usuario.id);
+
+  // próxima vez que o usuário está escalado (qualquer semana)
+  const meuProximo = useMemo(() => {
+    return [...state.cultos]
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .find((c) => Object.values(c.escalados).flat().includes(usuario.id));
+  }, [state.cultos, usuario.id]);
+
+  // semana visível + cultos filtrados
+  const { semanaLabel, isoInicio, isoFim, cultosNaSemana } = useMemo(() => {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fmtL = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const inicio = new Date(hoje);
+    inicio.setDate(hoje.getDate() - hoje.getDay() + weekOffset * 7); // domingo
+    const fim = new Date(inicio);
+    fim.setDate(inicio.getDate() + 6); // sábado
+    const iI = fmtL(inicio);
+    const iF = fmtL(fim);
+    const dI = formatBRDate(iI);
+    const dF = formatBRDate(iF);
+    const label = dI.mes === dF.mes
+      ? `${dI.dia} – ${dF.dia} de ${dF.mes}`
+      : `${dI.dia} ${dI.mes} – ${dF.dia} ${dF.mes}`;
+    const filtered = [...state.cultos]
+      .filter((c) => c.data >= iI && c.data <= iF)
+      .sort((a, b) => a.data.localeCompare(b.data) || a.horario.localeCompare(b.horario));
+    return { semanaLabel: label, isoInicio: iI, isoFim: iF, cultosNaSemana: filtered };
+  }, [state.cultos, weekOffset]);
 
   return (
     <div style={screenWrap}>
@@ -613,22 +640,88 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
         </div>
       )}
 
-      {/* Filtro mês + stat */}
-      <div style={{ padding: '20px 18px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 22, color: MEVAM_COLORS.text, letterSpacing: -0.4 }}>
-          Próximos cultos
+      {/* Navegação por semana */}
+      <div style={{ padding: '20px 18px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 22, color: MEVAM_COLORS.text, letterSpacing: -0.4 }}>
+            Próximos cultos
+          </div>
+          {weekOffset !== 0 && (
+            <button onClick={() => setWeekOffset(0)} style={{
+              fontSize: 10.5, fontFamily: 'Manrope', fontWeight: 700,
+              color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft,
+              border: `1px solid ${MEVAM_COLORS.accent}44`,
+              padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
+            }}>Hoje</button>
+          )}
         </div>
-        <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 500 }}>
-          {cultos.length} agendados
+
+        {/* Barra de semana com setas */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setWeekOffset((v) => v - 1)}
+            style={{
+              background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+              borderRadius: 10, padding: '7px 11px', cursor: 'pointer',
+              color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center', flexShrink: 0,
+            }}
+          >
+            <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
+              <Icon name="chevron" size={15}/>
+            </span>
+          </button>
+
+          <div style={{
+            flex: 1, textAlign: 'center', padding: '7px 0',
+            background: MEVAM_COLORS.card, border: `1px solid ${weekOffset === 0 ? MEVAM_COLORS.accent + '66' : MEVAM_COLORS.border}`,
+            borderRadius: 10,
+          }}>
+            <div style={{ fontFamily: 'Manrope', fontSize: 12, fontWeight: 700, color: weekOffset === 0 ? MEVAM_COLORS.accent : MEVAM_COLORS.text }}>
+              {weekOffset === 0 ? '📅 Semana atual' : semanaLabel}
+            </div>
+            {weekOffset !== 0 && (
+              <div style={{ fontFamily: 'Manrope', fontSize: 10.5, color: MEVAM_COLORS.muted, marginTop: 1 }}>
+                {semanaLabel}
+              </div>
+            )}
+            {weekOffset === 0 && (
+              <div style={{ fontFamily: 'Manrope', fontSize: 10.5, color: MEVAM_COLORS.muted, marginTop: 1 }}>
+                {semanaLabel}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setWeekOffset((v) => v + 1)}
+            style={{
+              background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+              borderRadius: 10, padding: '7px 11px', cursor: 'pointer',
+              color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center', flexShrink: 0,
+            }}
+          >
+            <Icon name="chevron" size={15}/>
+          </button>
         </div>
       </div>
 
-      {/* Lista de cultos */}
+      {/* Lista de cultos da semana */}
       <div style={{ padding: '4px 18px 28px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {cultos.map((c) => (
-          <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} usuario={usuario} dispatch={dispatch} onToast={onToast} />
-        ))}
+        {cultosNaSemana.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '36px 20px', color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>🗓️</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.muted }}>Nenhum culto nessa semana</div>
+            <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+              Use as setas para navegar ou clique em{' '}
+              <span style={{ color: MEVAM_COLORS.accent }}>Hoje</span> para voltar.
+            </div>
+          </div>
+        ) : (
+          cultosNaSemana.map((c) => (
+            <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} usuario={usuario} dispatch={dispatch} onToast={onToast} />
+          ))
+        )}
       </div>
+
       {showCodigo && <CodigoModal equipe={equipe} onClose={() => setShowCodigo(false)} />}
       {showCalendario && <CalendarEscalaModal state={state} onClose={() => setShowCalendario(false)} />}
     </div>

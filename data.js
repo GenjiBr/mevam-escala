@@ -53,15 +53,19 @@ function getNextOccurrences(weekday, count) {
 const ESC_VAZIO = { ministro: null, vocal_backing: null, guitarra: null, baixo: null,
   bateria: null, teclado: null, violao: null, telao: null, live: null, story: null, camera_fixa: null };
 
+// 2º domingo do mês: dia entre 8 e 14
+const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };
+
 window.CULTOS_INICIAIS = [
   // Quintas-feiras — Culto Profético (fixo)
   ...getNextOccurrences(4, 4).map((data) => ({
     id: `qui_${data}`, data, horario: '20:00', titulo: 'Culto Profético',
     cor: '#7C5CFF', escalados: { ...ESC_VAZIO },
   })),
-  // Domingos — Culto da Família (fixo)
+  // Domingos — Culto da Família ou Ceia (2º domingo)
   ...getNextOccurrences(0, 4).map((data) => ({
-    id: `dom_${data}`, data, horario: '19:00', titulo: 'Culto da Família',
+    id: `dom_${data}`, data, horario: '19:00',
+    titulo: isSegundoDomingo(data) ? 'Ceia' : 'Culto da Família',
     cor: '#3B82F6', escalados: { ...ESC_VAZIO },
   })),
   // Sexta e sábado NÃO são gerados automaticamente — adicionados pelo admin

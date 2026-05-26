@@ -140,37 +140,59 @@ function App() {
     }
   }, []);
 
-  /* ── Gerar escala (gera qui/dom por 8 semanas + distribui, pula sex/sáb) ── */
+  /* ── Gerar escala: limpa quartas + cultos mal nomeados, gera qui/dom 8 sem ── */
   const handleGerarEscala = useCallbackApp(async () => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const fmtISO = (d) => d.toISOString().slice(0, 10);
     const funcKeys = Object.keys(window.FUNCOES || {});
     const escaladosVazios = () => Object.fromEntries(funcKeys.map((k) => [k, null]));
+    // 2º domingo: dia entre 8 e 14
+    const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };
 
-    const existentes = [...state.cultos];
+    // 1. Identificar e deletar cultos inválidos (quartas + domingos/quintas mal nomeados)
+    const parasApagar = state.cultos.filter((c) => {
+      const dow = new Date(c.data + 'T00:00:00').getDay();
+      if (dow === 3) return true; // quarta — sempre remove
+      if (dow === 0 && c.titulo !== 'Culto da Família' && c.titulo !== 'Ceia') return true;
+      if (dow === 4 && c.titulo !== 'Culto Profético') return true;
+      return false;
+    });
+    for (const c of parasApagar) await sbDeleteCulto(c.id);
 
+    // 2. Base: cultos que sobrevivem
+    let existentes = state.cultos.filter((c) => !parasApagar.find((x) => x.id === c.id));
+
+    // 3. Corrigir nomes de domingos existentes (Culto da Família ↔ Ceia)
+    existentes = existentes.map((c) => {
+      const dow = new Date(c.data + 'T00:00:00').getDay();
+      if (dow !== 0) return c;
+      const correto = isSegundoDomingo(c.data) ? 'Ceia' : 'Culto da Família';
+      return c.titulo !== correto ? { ...c, titulo: correto } : c;
+    });
+
+    // 4. Gerar qui + dom para as próximas 8 semanas
     for (let w = 0; w < 8; w++) {
-      // Quinta (4) — Culto Profético
+      // Quinta — Culto Profético
       const thu = new Date(hoje);
-      const thuDiff = ((4 - hoje.getDay()) + 7) % 7 || 7;
-      thu.setDate(hoje.getDate() + thuDiff + w * 7);
+      thu.setDate(hoje.getDate() + (((4 - hoje.getDay()) + 7) % 7 || 7) + w * 7);
       const thuISO = fmtISO(thu);
-      if (!existentes.find((c) => c.data === thuISO && c.titulo === 'Culto Profético')) {
+      if (!existentes.find((c) => c.data === thuISO)) {
         existentes.push({ id: `qui_${thuISO}`, data: thuISO, horario: '20:00', titulo: 'Culto Profético', cor: '#7C5CFF', escalados: escaladosVazios() });
       }
-      // Domingo (0) — Culto da Família
+      // Domingo — Culto da Família ou Ceia
       const sun = new Date(hoje);
-      const sunDiff = ((0 - hoje.getDay()) + 7) % 7 || 7;
-      sun.setDate(hoje.getDate() + sunDiff + w * 7);
+      sun.setDate(hoje.getDate() + (((0 - hoje.getDay()) + 7) % 7 || 7) + w * 7);
       const sunISO = fmtISO(sun);
-      if (!existentes.find((c) => c.data === sunISO && c.titulo === 'Culto da Família')) {
-        existentes.push({ id: `dom_${sunISO}`, data: sunISO, horario: '19:00', titulo: 'Culto da Família', cor: '#3B82F6', escalados: escaladosVazios() });
+      if (!existentes.find((c) => c.data === sunISO)) {
+        const titulo = isSegundoDomingo(sunISO) ? 'Ceia' : 'Culto da Família';
+        existentes.push({ id: `dom_${sunISO}`, data: sunISO, horario: '19:00', titulo, cor: '#3B82F6', escalados: escaladosVazios() });
       }
     }
 
+    // 5. Auto-distribuir membros (pula sex/sáb — 100% manual)
     const novosCultos = existentes.map((c) => {
       const dow = new Date(c.data + 'T00:00:00').getDay();
-      if (dow === 5 || dow === 6) return c; // sexta/sábado: 100% manual
+      if (dow === 5 || dow === 6) return c;
       const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
       const esc = { ...c.escalados };
       for (const [fid, val] of Object.entries(esc)) {
@@ -190,7 +212,8 @@ function App() {
 
     _dispatch({ type: 'set_cultos', cultos: novosCultos });
     for (const c of novosCultos) await sbUpsertCulto(c);
-    showToast('Escala de quinta e domingo gerada para as próximas 8 semanas!', 'ok');
+    const removidos = parasApagar.length;
+    showToast(`Escala gerada!${removidos > 0 ? ` ${removidos} culto(s) antigo(s) removido(s).` : ''}`, 'ok');
   }, [state.cultos, state.membros, state.indispo]);
 
   /* ── Adicionar culto manual (sex/sáb) ── */

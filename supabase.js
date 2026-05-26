@@ -83,6 +83,11 @@ window.sbRemoveIndispo = async ({ membroId, data }) => {
   if (error) console.error('sbRemoveIndispo:', error.message);
 };
 
+window.sbDeleteCulto = async (cultoId) => {
+  const { error } = await SB.from('cultos').delete().eq('id', cultoId);
+  if (error) console.error('sbDeleteCulto:', error.message);
+};
+
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */
 window.sbSeedCultos = async () => {
   for (const c of (window.CULTOS_INICIAIS || [])) {
