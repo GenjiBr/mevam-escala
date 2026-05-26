@@ -140,9 +140,37 @@ function App() {
     }
   }, []);
 
-  /* ── Gerar escala (calcula + persiste cultos) ── */
+  /* ── Gerar escala (gera qui/dom por 8 semanas + distribui, pula sex/sáb) ── */
   const handleGerarEscala = useCallbackApp(async () => {
-    const novosCultos = state.cultos.map((c) => {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fmtISO = (d) => d.toISOString().slice(0, 10);
+    const funcKeys = Object.keys(window.FUNCOES || {});
+    const escaladosVazios = () => Object.fromEntries(funcKeys.map((k) => [k, null]));
+
+    const existentes = [...state.cultos];
+
+    for (let w = 0; w < 8; w++) {
+      // Quinta (4) — Culto Profético
+      const thu = new Date(hoje);
+      const thuDiff = ((4 - hoje.getDay()) + 7) % 7 || 7;
+      thu.setDate(hoje.getDate() + thuDiff + w * 7);
+      const thuISO = fmtISO(thu);
+      if (!existentes.find((c) => c.data === thuISO && c.titulo === 'Culto Profético')) {
+        existentes.push({ id: `qui_${thuISO}`, data: thuISO, horario: '20:00', titulo: 'Culto Profético', cor: '#7C5CFF', escalados: escaladosVazios() });
+      }
+      // Domingo (0) — Culto da Família
+      const sun = new Date(hoje);
+      const sunDiff = ((0 - hoje.getDay()) + 7) % 7 || 7;
+      sun.setDate(hoje.getDate() + sunDiff + w * 7);
+      const sunISO = fmtISO(sun);
+      if (!existentes.find((c) => c.data === sunISO && c.titulo === 'Culto da Família')) {
+        existentes.push({ id: `dom_${sunISO}`, data: sunISO, horario: '09:00', titulo: 'Culto da Família', cor: '#3B82F6', escalados: escaladosVazios() });
+      }
+    }
+
+    const novosCultos = existentes.map((c) => {
+      const dow = new Date(c.data + 'T00:00:00').getDay();
+      if (dow === 5 || dow === 6) return c; // sexta/sábado: 100% manual
       const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
       const esc = { ...c.escalados };
       for (const [fid, val] of Object.entries(esc)) {
@@ -159,10 +187,26 @@ function App() {
       }
       return { ...c, escalados: esc };
     });
+
     _dispatch({ type: 'set_cultos', cultos: novosCultos });
     for (const c of novosCultos) await sbUpsertCulto(c);
-    showToast('Escala gerada para as próximas semanas', 'ok');
+    showToast('Escala de quinta e domingo gerada para as próximas 8 semanas!', 'ok');
   }, [state.cultos, state.membros, state.indispo]);
+
+  /* ── Adicionar culto manual (sex/sáb) ── */
+  const handleAddCultoManual = useCallbackApp(async ({ data, horario, titulo }) => {
+    const dow = new Date(data + 'T00:00:00').getDay();
+    const prefixo = dow === 5 ? 'sex' : 'sab';
+    const id = `${prefixo}_${data}_${Date.now()}`;
+    const funcKeys = Object.keys(window.FUNCOES || {});
+    const escalados = Object.fromEntries(funcKeys.map((k) => [k, null]));
+    const cor = dow === 5 ? '#F59E0B' : '#10B981';
+    const novoCulto = { id, data, horario, titulo, cor, escalados };
+    const novosCultos = [...state.cultos, novoCulto];
+    _dispatch({ type: 'set_cultos', cultos: novosCultos });
+    await sbUpsertCulto(novoCulto);
+    showToast(`Culto "${titulo}" adicionado!`, 'ok');
+  }, [state.cultos]);
 
   /* ── Auth: escuta mudanças de sessão ── */
   useEffectApp(() => {
@@ -285,7 +329,7 @@ function App() {
     disponibilidade: <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     membros:         <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     perfil:          <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
-    admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onGerarEscala={handleGerarEscala} />,
+    admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onGerarEscala={handleGerarEscala} onAddCultoManual={handleAddCultoManual} />,
   };
 
   return (

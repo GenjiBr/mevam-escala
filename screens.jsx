@@ -366,8 +366,10 @@ function CodigoModal({ equipe, onClose }) {
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: 480, margin: '0 auto',
         background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-        padding: '24px 24px 44px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+        padding: '24px 24px calc(110px + env(safe-area-inset-bottom))',
+        border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
         animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
+        maxHeight: '85dvh', overflowY: 'auto',
       }}>
         {/* handle */}
         <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 22px' }} />
@@ -424,10 +426,165 @@ function CodigoModal({ equipe, onClose }) {
 }
 
 // ════════════════════════════════════════════════════════════
+// MODAL — calendário de cultos (Ver Escala)
+// ════════════════════════════════════════════════════════════
+function CalendarEscalaModal({ state, onClose }) {
+  const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+  const [diaSel, setDiaSel] = useState(null);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const first = new Date(year, month, 1);
+  const last  = new Date(year, month + 1, 0);
+  const startDow = first.getDay();
+
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= last.getDate(); d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dows  = ['D','S','T','Q','Q','S','S'];
+
+  const cultosNoMes = useMemo(() => {
+    const map = {};
+    state.cultos.forEach((c) => {
+      const [y, m, d] = c.data.split('-').map(Number);
+      if (y === year && m - 1 === month) {
+        if (!map[d]) map[d] = [];
+        map[d].push(c);
+      }
+    });
+    return map;
+  }, [state.cultos, year, month]);
+
+  const cultosNoDia = diaSel ? state.cultos.filter((c) => c.data === diaSel) : [];
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
+      zIndex: 90, display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 480, margin: '0 auto',
+        background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        padding: '20px 18px calc(110px + env(safe-area-inset-bottom))',
+        border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+        animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
+        maxHeight: '88dvh', overflowY: 'auto',
+      }}>
+        {/* handle */}
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 18px' }} />
+
+        {/* título */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+            <Icon name="calendar" size={17}/>
+          </div>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>
+            Calendário de Cultos
+          </div>
+        </div>
+
+        {/* nav mês */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <button onClick={() => setCursor(new Date(year, month - 1, 1))} style={{ ...navBtnStyle, transform: 'scaleX(-1)' }}>
+            <Icon name="chevron" size={14}/>
+          </button>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 16, color: MEVAM_COLORS.text, textTransform: 'capitalize', letterSpacing: -0.2 }}>
+            {meses[month]} {year}
+          </div>
+          <button onClick={() => setCursor(new Date(year, month + 1, 1))} style={navBtnStyle}>
+            <Icon name="chevron" size={14}/>
+          </button>
+        </div>
+
+        {/* cabeçalho dias */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
+          {dows.map((d, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: 10, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.4 }}>{d}</div>
+          ))}
+        </div>
+
+        {/* células */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          {cells.map((d, i) => {
+            if (d === null) return <div key={i} style={{ aspectRatio: '1' }} />;
+            const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const isSel   = diaSel === iso;
+            const isToday = iso === HOJE_ISO;
+            const cultosAqui = cultosNoMes[d] || [];
+            const temCulto = cultosAqui.length > 0;
+            return (
+              <button key={i} onClick={() => setDiaSel(isSel ? null : iso)} style={{
+                aspectRatio: '1', borderRadius: 10,
+                background: isSel ? MEVAM_COLORS.accent : isToday ? MEVAM_COLORS.accentSoft : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isSel ? MEVAM_COLORS.accent : isToday ? MEVAM_COLORS.accent + '88' : MEVAM_COLORS.border}`,
+                color: isSel ? '#fff' : MEVAM_COLORS.text,
+                fontFamily: 'Manrope', fontWeight: isToday ? 700 : 500, fontSize: 12.5,
+                cursor: temCulto ? 'pointer' : 'default',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 0,
+              }}>
+                {d}
+                {temCulto && (
+                  <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+                    {cultosAqui.slice(0, 3).map((c, k) => (
+                      <div key={k} style={{ width: 4, height: 4, borderRadius: 999, background: isSel ? 'rgba(255,255,255,0.8)' : c.cor || MEVAM_COLORS.accent }} />
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* cultos do dia selecionado */}
+        {diaSel && (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+              {(() => { const d = formatBRDate(diaSel); return `${d.diaSemana}, ${d.dia} de ${d.mes}`; })()}
+            </div>
+            {cultosNoDia.length === 0 ? (
+              <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13, padding: '12px 0', textAlign: 'center' }}>
+                Nenhum culto neste dia
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {cultosNoDia.map((c) => {
+                  const escaladosIds = Object.values(c.escalados).flat().filter(Boolean);
+                  return (
+                    <div key={c.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '13px 14px', borderRadius: 14,
+                      background: c.cor + '12', border: `1px solid ${c.cor}44`,
+                    }}>
+                      <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: c.cor, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 13.5, color: MEVAM_COLORS.text }}>{c.titulo}</div>
+                        <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Icon name="clock" size={11}/> {c.horario} · {escaladosIds.length} escalados
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const navBtnStyle = { width: 30, height: 30, borderRadius: 8, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.text, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
+
+// ════════════════════════════════════════════════════════════
 // ESCALA (home)
 // ════════════════════════════════════════════════════════════
 function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick }) {
   const [showCodigo, setShowCodigo] = useState(false);
+  const [showCalendario, setShowCalendario] = useState(false);
   const cultos = useMemo(() => {
     return [...state.cultos].sort((a, b) => a.data.localeCompare(b.data));
   }, [state.cultos]);
@@ -441,9 +598,12 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
   return (
     <div style={screenWrap}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
-        {equipe && (
-          <Btn variant="ghost" icon={<Icon name="sparkles" size={14}/>} onClick={() => setShowCodigo(true)} style={{ padding: '8px 12px', fontSize: 12 }}>Criar Escala</Btn>
-        )}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Btn variant="ghost" icon={<Icon name="calendar" size={13}/>} onClick={() => setShowCalendario(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Ver Escala</Btn>
+          {equipe && (
+            <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Criar Escala</Btn>
+          )}
+        </div>
       </Header>
 
       {/* Lembrete da próxima escala do usuário */}
@@ -470,6 +630,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
         ))}
       </div>
       {showCodigo && <CodigoModal equipe={equipe} onClose={() => setShowCodigo(false)} />}
+      {showCalendario && <CalendarEscalaModal state={state} onClose={() => setShowCalendario(false)} />}
     </div>
   );
 }
@@ -1251,8 +1412,129 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
 // ════════════════════════════════════════════════════════════
 // ADMIN
 // ════════════════════════════════════════════════════════════
-function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala }) {
+// ════════════════════════════════════════════════════════════
+// MODAL — Adicionar culto manual (sexta / sábado)
+// ════════════════════════════════════════════════════════════
+function AddCultoModal({ onClose, onConfirm }) {
+  const [data, setData] = React.useState('');
+  const [horario, setHorario] = React.useState('20:00');
+  const [titulo, setTitulo] = React.useState('');
+
+  const opcoesData = React.useMemo(() => {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    const result = [];
+    for (let i = 1; i <= 56; i++) {
+      const d = new Date(hoje);
+      d.setDate(hoje.getDate() + i);
+      const dow = d.getDay();
+      if (dow === 5 || dow === 6) result.push({ iso: fmt(d), dow });
+    }
+    return result.slice(0, 14);
+  }, []);
+
+  const canConfirm = data && horario && titulo.trim();
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,5,12,0.82)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{
+        width: '100%', maxWidth: 480,
+        background: '#0D1526', borderRadius: '24px 24px 0 0',
+        border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+        padding: '0 0 calc(110px + env(safe-area-inset-bottom))',
+        animation: 'slideUp .3s ease',
+        maxHeight: '85dvh', overflowY: 'auto',
+      }} onClick={(e) => e.stopPropagation()}>
+
+        {/* handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 8px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border }} />
+        </div>
+
+        <div style={{ padding: '0 18px 20px' }}>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 20, color: MEVAM_COLORS.text, marginBottom: 4 }}>
+            + Adicionar culto eventual
+          </div>
+          <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginBottom: 20, lineHeight: 1.5 }}>
+            Apenas sextas e sábados. A escala será montada manualmente pelo admin.
+          </div>
+
+          {/* Data */}
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+            Data
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+            {opcoesData.map((op) => {
+              const d = formatBRDate(op.iso);
+              const isSab = op.dow === 6;
+              const active = data === op.iso;
+              return (
+                <button key={op.iso} onClick={() => setData(op.iso)} style={{
+                  padding: '8px 12px', borderRadius: 12,
+                  background: active ? MEVAM_COLORS.accent : MEVAM_COLORS.card,
+                  border: `1px solid ${active ? MEVAM_COLORS.accent : MEVAM_COLORS.border}`,
+                  color: active ? '#fff' : MEVAM_COLORS.text,
+                  fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 58,
+                  transition: 'all .15s',
+                }}>
+                  <span style={{ fontSize: 10, opacity: 0.7, color: isSab ? '#10B981' : '#F59E0B' }}>{isSab ? 'Sáb' : 'Sex'}</span>
+                  <span>{d.dia} {d.mes}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Horário */}
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+            Horário
+          </div>
+          <input
+            type="time"
+            value={horario}
+            onChange={(e) => setHorario(e.target.value)}
+            style={{
+              width: '100%', padding: '10px 14px', borderRadius: 12,
+              background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+              color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontSize: 15,
+              marginBottom: 16, outline: 'none',
+            }}
+          />
+
+          {/* Título */}
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+            Título do culto
+          </div>
+          <input
+            type="text"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ex: Congresso, Seminário, Culto Especial…"
+            style={{
+              width: '100%', padding: '10px 14px', borderRadius: 12,
+              background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+              color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontSize: 15,
+              marginBottom: 20, outline: 'none',
+            }}
+          />
+
+          <Btn variant="accent" full
+            onClick={() => { if (canConfirm) { onConfirm({ data, horario, titulo: titulo.trim() }); onClose(); } }}
+            style={{ opacity: canConfirm ? 1 : 0.45 }}>
+            Adicionar culto
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// ADMIN SCREEN
+// ════════════════════════════════════════════════════════════
+function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala, onAddCultoManual }) {
   const isAdmin = usuario.perfil === 'admin';
+  const [showAddCulto, setShowAddCulto] = React.useState(false);
 
   // métricas
   const ativos = state.membros.filter((m) => m.status === 'ativo').length;
@@ -1352,6 +1634,59 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala 
         </div>
       )}
 
+      {/* cultos eventuais (sex/sáb) */}
+      {isAdmin && (
+        <div style={{ padding: '18px 18px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="calendar" size={12}/> Cultos eventuais
+            </div>
+            <button onClick={() => setShowAddCulto(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 999,
+              background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}55`,
+              color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+              <Icon name="plus" size={13}/> Adicionar
+            </button>
+          </div>
+          {(() => {
+            const eventuais = state.cultos
+              .filter((c) => { const dow = new Date(c.data + 'T00:00:00').getDay(); return dow === 5 || dow === 6; })
+              .sort((a, b) => a.data.localeCompare(b.data));
+            if (eventuais.length === 0) {
+              return (
+                <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13, textAlign: 'center', padding: '14px 0 4px' }}>
+                  Nenhum culto eventual agendado.
+                </div>
+              );
+            }
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {eventuais.map((c) => {
+                  const d = formatBRDate(c.data);
+                  const dow = new Date(c.data + 'T00:00:00').getDay();
+                  const tagColor = dow === 6 ? '#10B981' : '#F59E0B';
+                  return (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}` }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: tagColor + '22', border: `1px solid ${tagColor}44`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: tagColor, fontFamily: 'Manrope' }}>{dow === 6 ? 'Sáb' : 'Sex'}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: MEVAM_COLORS.text, fontFamily: 'Manrope', lineHeight: 1 }}>{d.dia}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>{c.titulo}</div>
+                        <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>{d.diaSemana}, {d.dia} {d.mes} · {c.horario}</div>
+                      </div>
+                      <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: tagColor + '22', color: tagColor, fontFamily: 'Manrope', fontWeight: 700 }}>Manual</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       {/* conflitos */}
       {conflitosLista.length > 0 && (
         <div style={{ padding: '18px 18px 0' }}>
@@ -1416,6 +1751,14 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala 
           </div>
         );
       })()}
+
+      {/* modal adicionar culto */}
+      {showAddCulto && (
+        <AddCultoModal
+          onClose={() => setShowAddCulto(false)}
+          onConfirm={(payload) => { onAddCultoManual && onAddCultoManual(payload); }}
+        />
+      )}
 
       {/* indisponibilidades registradas */}
       <div style={{ padding: '18px 18px 28px' }}>

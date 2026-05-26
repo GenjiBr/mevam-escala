@@ -31,33 +31,40 @@ window.MEMBROS_INICIAIS = [
   { id: 'm14', nome: 'Beatriz Nunes',   iniciais: 'BN', func: 'story',         secundarias: [],                        status: 'inativo',   tom: '#EC4899' },
 ];
 
-// gera datas dinâmicas — próximos cultos a partir de hoje
-function nextWeekday(from, weekday /* 0=dom, 3=qua */, addWeeks = 0) {
-  const d = new Date(from);
-  const diff = (weekday - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + diff + addWeeks * 7);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 const HOJE = new Date(); HOJE.setHours(0,0,0,0);
 const fmt = (d) => d.toISOString().slice(0, 10);
 
 window.HOJE_ISO = fmt(HOJE);
 
+// Retorna as próximas N ocorrências de um dia da semana (0=dom … 6=sáb)
+function getNextOccurrences(weekday, count) {
+  const dates = [];
+  const d = new Date(HOJE);
+  const diff = ((weekday - d.getDay()) + 7) % 7 || 7; // sempre a PRÓXIMA, nunca hoje
+  d.setDate(d.getDate() + diff);
+  for (let i = 0; i < count; i++) {
+    dates.push(fmt(new Date(d)));
+    d.setDate(d.getDate() + 7);
+  }
+  return dates;
+}
+
+// Escalados vazios (preenchidos pelo admin depois)
+const ESC_VAZIO = { ministro: null, vocal_backing: null, guitarra: null, baixo: null,
+  bateria: null, teclado: null, violao: null, telao: null, live: null, story: null, camera_fixa: null };
+
 window.CULTOS_INICIAIS = [
-  { id: 'c1', data: fmt(nextWeekday(HOJE, 0, 0)), titulo: 'Culto Domingo Manhã', horario: '09:00', cor: '#3B82F6',
-    escalados: { ministro:'m1', vocal_backing:['m3','m9'], guitarra:'m4', baixo:'m5', bateria:'m6', teclado:'m7', violao:'m8', telao:'m12', live:'m11', story:null, camera_fixa:null } },
-  { id: 'c2', data: fmt(nextWeekday(HOJE, 0, 0)), titulo: 'Culto Domingo Noite',  horario: '18:30', cor: '#7C5CFF',
-    escalados: { ministro:'m2', vocal_backing:['m9','m13'], guitarra:'m4', baixo:'m5', bateria:'m6', teclado:'m7', violao:null, telao:'m12', live:'m11', story:null, camera_fixa:null } },
-  { id: 'c3', data: fmt(nextWeekday(HOJE, 3, 0)), titulo: 'Culto de Quarta',      horario: '20:00', cor: '#4FD1C5',
-    escalados: { ministro:'m10', vocal_backing:['m9'], guitarra:null, baixo:'m5', bateria:'m6', teclado:'m7', violao:'m8', telao:'m12', live:'m11', story:null, camera_fixa:null } },
-  { id: 'c4', data: fmt(nextWeekday(HOJE, 0, 1)), titulo: 'Culto Domingo Manhã', horario: '09:00', cor: '#3B82F6',
-    escalados: { ministro:'m1', vocal_backing:['m3','m9'], guitarra:'m4', baixo:'m5', bateria:'m6', teclado:'m7', violao:'m8', telao:'m12', live:'m11', story:null, camera_fixa:null } },
-  { id: 'c5', data: fmt(nextWeekday(HOJE, 0, 1)), titulo: 'Culto Domingo Noite',  horario: '18:30', cor: '#7C5CFF',
-    escalados: { ministro:'m2', vocal_backing:['m3','m9'], guitarra:'m4', baixo:'m5', bateria:'m6', teclado:'m7', violao:'m8', telao:'m12', live:'m11', story:null, camera_fixa:null } },
-  { id: 'c6', data: fmt(nextWeekday(HOJE, 3, 1)), titulo: 'Culto de Quarta',      horario: '20:00', cor: '#4FD1C5',
-    escalados: { ministro:'m1', vocal_backing:['m9'], guitarra:null, baixo:'m5', bateria:'m6', teclado:'m7', violao:'m8', telao:'m12', live:'m11', story:null, camera_fixa:null } },
+  // Quintas-feiras — Culto Profético (fixo)
+  ...getNextOccurrences(4, 4).map((data) => ({
+    id: `qui_${data}`, data, horario: '20:00', titulo: 'Culto Profético',
+    cor: '#7C5CFF', escalados: { ...ESC_VAZIO },
+  })),
+  // Domingos — Culto da Família (fixo)
+  ...getNextOccurrences(0, 4).map((data) => ({
+    id: `dom_${data}`, data, horario: '09:00', titulo: 'Culto da Família',
+    cor: '#3B82F6', escalados: { ...ESC_VAZIO },
+  })),
+  // Sexta e sábado NÃO são gerados automaticamente — adicionados pelo admin
 ];
 
 // indisponibilidades exemplo (ISO date → array de membro ids)
