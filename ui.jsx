@@ -205,6 +205,7 @@ function Icon({ name, size = 18 }) {
   const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
   switch (name) {
     case 'calendar': return (<svg width={s} height={s} viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" {...stroke}/><path d="M3 9h18M8 3v4M16 3v4" {...stroke}/></svg>);
+    case 'home':     return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M3 11L12 3l9 8v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9z" {...stroke}/><path d="M9 21V13h6v8" {...stroke}/></svg>);
     case 'ban':      return (<svg width={s} height={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" {...stroke}/><path d="M5.5 5.5l13 13" {...stroke}/></svg>);
     case 'users':    return (<svg width={s} height={s} viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" {...stroke}/><path d="M3.5 19c.7-3 3-4.7 5.5-4.7s4.8 1.7 5.5 4.7" {...stroke}/><circle cx="17" cy="9" r="2.5" {...stroke}/><path d="M15.5 14.3c2.4-.2 4.4 1 5 3.7" {...stroke}/></svg>);
     case 'shield':   return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.5 8-8 9-4.5-1-8-4.5-8-9V6l8-3z" {...stroke}/><path d="M9 12l2 2 4-4" {...stroke}/></svg>);

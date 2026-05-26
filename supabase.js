@@ -24,6 +24,7 @@ window.sbGetMembros = async () => {
     foto: m.foto || null,
     perfil: m.perfil || 'membro',
     email: m.email || null,
+    equipe_id: m.equipe_id || null,
   }));
 };
 
@@ -87,4 +88,31 @@ window.sbSeedCultos = async () => {
   for (const c of (window.CULTOS_INICIAIS || [])) {
     await sbUpsertCulto(c);
   }
+};
+
+/* ─────────────────────────────────────────────────
+   Equipes (espaços de trabalho com código de convite)
+───────────────────────────────────────────────── */
+window.sbCriarEquipe = async (nome, membroId) => {
+  const codigo = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const { data, error } = await SB.from('equipes')
+    .insert({ nome, codigo, criado_por: membroId })
+    .select().single();
+  if (error) { console.error('sbCriarEquipe:', error.message); throw new Error(error.message); }
+  await sbUpdateMembro(membroId, { equipe_id: data.id, perfil: 'admin' });
+  return data;
+};
+
+window.sbEntrarEquipe = async (codigo, membroId) => {
+  const { data, error } = await SB.from('equipes').select('*')
+    .eq('codigo', codigo.trim().toUpperCase()).maybeSingle();
+  if (error) { console.error('sbEntrarEquipe:', error.message); throw new Error(error.message); }
+  if (!data) throw new Error('Código não encontrado. Verifique e tente novamente.');
+  await sbUpdateMembro(membroId, { equipe_id: data.id });
+  return data;
+};
+
+window.sbGetEquipe = async (id) => {
+  const { data } = await SB.from('equipes').select('*').eq('id', id).maybeSingle();
+  return data || null;
 };

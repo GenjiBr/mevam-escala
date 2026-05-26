@@ -194,9 +194,240 @@ function DemoChip({ children, onClick }) {
 }
 
 // ════════════════════════════════════════════════════════════
+// SETUP (criar ou entrar em uma equipe)
+// ════════════════════════════════════════════════════════════
+function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
+  const [modo, setModo] = useState(null); // null | 'criar' | 'entrar'
+  const [nome, setNome] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const primeiroNome = (usuario.nome || '').split(' ')[0];
+
+  const handleCriar = async () => {
+    if (!nome.trim()) { setErr('Dê um nome para a equipe'); return; }
+    setLoading(true); setErr('');
+    try { await onCriar(nome.trim()); }
+    catch (e) { setErr(e.message || 'Erro ao criar'); setLoading(false); }
+  };
+
+  const handleEntrar = async () => {
+    if (codigo.trim().length < 4) { setErr('Código muito curto'); return; }
+    setLoading(true); setErr('');
+    try { await onEntrar(codigo.trim()); }
+    catch (e) { setErr(e.message || 'Código inválido'); setLoading(false); }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      padding: '50px 22px calc(40px + env(safe-area-inset-bottom))',
+      background: `radial-gradient(120% 70% at 50% 0%, rgba(91,127,255,0.22) 0%, rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
+      position: 'relative',
+    }}>
+      {/* glow */}
+      <div style={{
+        position: 'absolute', top: -100, left: -80, right: -80, height: 360,
+        background: 'radial-gradient(50% 60% at 50% 50%, rgba(91,127,255,0.4) 0%, rgba(4,8,26,0) 70%)',
+        filter: 'blur(30px)', pointerEvents: 'none',
+      }} />
+
+      {/* logo */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, position: 'relative' }}>
+        <img src="assets/mevam-logo.png" alt="MEVAM" style={{ width: 110, mixBlendMode: 'screen', filter: 'drop-shadow(0 4px 16px rgba(91,127,255,0.5))' }} />
+      </div>
+
+      <div style={{ position: 'relative' }}>
+        <h2 style={{ margin: '0 0 6px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 28, color: MEVAM_COLORS.text, letterSpacing: -0.6, lineHeight: 1.1 }}>
+          Olá, {primeiroNome}! 👋
+        </h2>
+        <p style={{ margin: '0 0 28px', color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 14, lineHeight: 1.55 }}>
+          Para começar, crie uma nova escala ou<br/>entre em uma equipe já existente.
+        </p>
+
+        {modo === null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Criar escala */}
+            <button onClick={() => setModo('criar')} style={{
+              display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px',
+              borderRadius: 18, cursor: 'pointer', textAlign: 'left', width: '100%',
+              background: `linear-gradient(135deg, rgba(91,127,255,0.18), rgba(91,127,255,0.08))`,
+              border: `1px solid ${MEVAM_COLORS.accent}55`, transition: 'all .15s',
+            }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+                <Icon name="sparkles" size={22} />
+              </div>
+              <div style={{ flex: 1, textAlign: 'left' }}>
+                <div style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 15, color: MEVAM_COLORS.text }}>Criar nova Escala</div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, marginTop: 3 }}>Você vira admin e convida a equipe</div>
+              </div>
+              <span style={{ color: MEVAM_COLORS.mutedSoft, flexShrink: 0 }}><Icon name="chevron" size={16}/></span>
+            </button>
+
+            {/* Entrar com código */}
+            <button onClick={() => setModo('entrar')} style={{
+              display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px',
+              borderRadius: 18, cursor: 'pointer', textAlign: 'left', width: '100%',
+              background: 'rgba(255,255,255,0.03)', border: `1px solid ${MEVAM_COLORS.border}`,
+              transition: 'all .15s',
+            }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: `1px solid ${MEVAM_COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.muted, flexShrink: 0 }}>
+                <Icon name="person" size={22} />
+              </div>
+              <div style={{ flex: 1, textAlign: 'left' }}>
+                <div style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 15, color: MEVAM_COLORS.text }}>Entrar com código</div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, marginTop: 3 }}>Recebi um código de convite</div>
+              </div>
+              <span style={{ color: MEVAM_COLORS.mutedSoft, flexShrink: 0 }}><Icon name="chevron" size={16}/></span>
+            </button>
+          </div>
+        )}
+
+        {modo === 'criar' && (
+          <Card glow accent={MEVAM_COLORS.accent} style={{ padding: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={() => { setModo(null); setErr(''); }} style={{ background: 'none', border: 'none', color: MEVAM_COLORS.muted, cursor: 'pointer', padding: '4px 6px', borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+                  ‹
+                </button>
+                <span style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 14, color: MEVAM_COLORS.text }}>Nova Escala</span>
+              </div>
+              <Field label="Nome da equipe / ministério">
+                <input value={nome} onChange={(e) => { setNome(e.target.value); setErr(''); }}
+                  placeholder="Ex: MEVAM Ceilândia" style={inputStyle} autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleCriar()} />
+              </Field>
+              {err && <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope' }}>{err}</div>}
+              <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={handleCriar} disabled={loading}>
+                {loading ? 'Criando...' : 'Criar Escala'}
+              </Btn>
+            </div>
+          </Card>
+        )}
+
+        {modo === 'entrar' && (
+          <Card style={{ padding: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={() => { setModo(null); setErr(''); }} style={{ background: 'none', border: 'none', color: MEVAM_COLORS.muted, cursor: 'pointer', padding: '4px 6px', borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+                  ‹
+                </button>
+                <span style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 14, color: MEVAM_COLORS.text }}>Entrar na Equipe</span>
+              </div>
+              <Field label="Código de convite">
+                <input value={codigo} onChange={(e) => { setCodigo(e.target.value.toUpperCase()); setErr(''); }}
+                  placeholder="XXXXXX" maxLength={8} autoFocus
+                  style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: 6, textAlign: 'center', fontSize: 22, fontWeight: 700 }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEntrar()} />
+              </Field>
+              {err && <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope' }}>{err}</div>}
+              <Btn variant="accent" full icon={<Icon name="check" size={14}/>} onClick={handleEntrar} disabled={loading}>
+                {loading ? 'Verificando...' : 'Entrar na equipe'}
+              </Btn>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL — código de convite
+// ════════════════════════════════════════════════════════════
+function CodigoModal({ equipe, onClose }) {
+  const [copiado, setCopiado] = useState(false);
+  if (!equipe) return null;
+
+  const copiar = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(equipe.codigo);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2500);
+    }
+  };
+
+  const compartilhar = () => {
+    const texto = `Você foi convidado para a equipe *${equipe.nome}* no MEVAM Escala!\n\nCódigo de convite: *${equipe.codigo}*\n\nAbra o app → "Criar Escala" → "Entrar com código".`;
+    if (navigator.share) {
+      navigator.share({ title: 'Convite MEVAM Escala', text: texto }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2500);
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
+      zIndex: 90, display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 480, margin: '0 auto',
+        background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        padding: '24px 24px 44px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+        animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
+      }}>
+        {/* handle */}
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 22px' }} />
+
+        {/* título */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+            <Icon name="person" size={18}/>
+          </div>
+          <div>
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>Convidar para a equipe</div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, marginTop: 2 }}>{equipe.nome}</div>
+          </div>
+        </div>
+
+        {/* código visual */}
+        <div style={{
+          borderRadius: 18, padding: '22px 18px 20px',
+          background: `linear-gradient(135deg, rgba(91,127,255,0.16), rgba(91,127,255,0.06))`,
+          border: `1px solid ${MEVAM_COLORS.accent}44`, textAlign: 'center', marginBottom: 16,
+        }}>
+          <div style={{ fontFamily: 'Manrope', fontSize: 11, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 14 }}>
+            Código de convite
+          </div>
+          {/* letras individuais */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginBottom: 16 }}>
+            {equipe.codigo.split('').map((ch, i) => (
+              <div key={i} style={{
+                width: 44, height: 54, borderRadius: 12,
+                background: 'rgba(0,0,0,0.45)', border: `1.5px solid ${MEVAM_COLORS.accent}66`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 24, color: '#A8BBFF',
+                boxShadow: `0 0 14px ${MEVAM_COLORS.accent}20`,
+              }}>{ch}</div>
+            ))}
+          </div>
+          <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.mutedSoft, lineHeight: 1.55 }}>
+            Compartilhe com os membros da equipe.<br/>Eles acessam o app → <strong style={{ color: MEVAM_COLORS.muted }}>Criar Escala</strong> → <strong style={{ color: MEVAM_COLORS.muted }}>Entrar com código</strong>.
+          </div>
+        </div>
+
+        {/* botões */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variant="ghost" full onClick={copiar} icon={<Icon name={copiado ? 'check' : 'edit'} size={14}/>}>
+            {copiado ? 'Copiado!' : 'Copiar código'}
+          </Btn>
+          <Btn variant="accent" full onClick={compartilhar} icon={<Icon name="share" size={14}/>}>
+            Compartilhar
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
 // ESCALA (home)
 // ════════════════════════════════════════════════════════════
-function EscalaScreen({ state, dispatch, usuario, onShare, onToast, onPerfilClick }) {
+function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick }) {
+  const [showCodigo, setShowCodigo] = useState(false);
   const cultos = useMemo(() => {
     return [...state.cultos].sort((a, b) => a.data.localeCompare(b.data));
   }, [state.cultos]);
@@ -210,7 +441,9 @@ function EscalaScreen({ state, dispatch, usuario, onShare, onToast, onPerfilClic
   return (
     <div style={screenWrap}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
-        <Btn variant="ghost" icon={<Icon name="share" size={14}/>} onClick={onShare} style={{ padding: '8px 12px', fontSize: 12 }}>Compartilhar</Btn>
+        {equipe && (
+          <Btn variant="ghost" icon={<Icon name="sparkles" size={14}/>} onClick={() => setShowCodigo(true)} style={{ padding: '8px 12px', fontSize: 12 }}>Criar Escala</Btn>
+        )}
       </Header>
 
       {/* Lembrete da próxima escala do usuário */}
@@ -236,6 +469,7 @@ function EscalaScreen({ state, dispatch, usuario, onShare, onToast, onPerfilClic
           <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} />
         ))}
       </div>
+      {showCodigo && <CodigoModal equipe={equipe} onClose={() => setShowCodigo(false)} />}
     </div>
   );
 }
@@ -1017,26 +1251,8 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
 // ════════════════════════════════════════════════════════════
 // ADMIN
 // ════════════════════════════════════════════════════════════
-function AdminScreen({ state, dispatch, usuario, onToast, onGerarEscala }) {
-  if (usuario.perfil !== 'admin') {
-    return (
-      <div style={screenWrap}>
-        <div style={{ padding: '60px 30px', textAlign: 'center' }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 999, margin: '0 auto 18px',
-            background: MEVAM_COLORS.dangerSoft, border: `1px solid ${MEVAM_COLORS.danger}44`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.danger,
-          }}>
-            <Icon name="shield" size={24}/>
-          </div>
-          <h3 style={{ margin: 0, fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 20, color: MEVAM_COLORS.text }}>Acesso restrito</h3>
-          <p style={{ color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13, marginTop: 6 }}>
-            Apenas administradores podem acessar o painel.
-          </p>
-        </div>
-      </div>
-    );
-  }
+function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala }) {
+  const isAdmin = usuario.perfil === 'admin';
 
   // métricas
   const ativos = state.membros.filter((m) => m.status === 'ativo').length;
@@ -1068,10 +1284,10 @@ function AdminScreen({ state, dispatch, usuario, onToast, onGerarEscala }) {
     <div style={screenWrap}>
       <div style={{ padding: '14px 18px 0' }}>
         <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, fontSize: 11, color: '#A8BBFF', fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
-          <Icon name="shield" size={12}/> Painel do administrador
+          <Icon name="shield" size={12}/> {isAdmin ? 'Painel do administrador' : 'Visão geral'}
         </div>
         <h2 style={{ margin: '12px 0 4px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 26, color: MEVAM_COLORS.text, letterSpacing: -0.6 }}>
-          Visão geral
+          {isAdmin ? 'Painel admin' : 'Visão geral'}
         </h2>
       </div>
 
@@ -1083,42 +1299,58 @@ function AdminScreen({ state, dispatch, usuario, onToast, onGerarEscala }) {
         <Stat label="Slots vazios" value={vazios} accent={vazios > 0 ? '#F39C12' : MEVAM_COLORS.ok} sub={vazios > 0 ? 'precisam cobertura' : 'completo'} />
       </div>
 
-      {/* auto-gerador */}
-      <div style={{ padding: '18px 18px 0' }}>
-        <div style={{
-          position: 'relative', borderRadius: 18, overflow: 'hidden',
-          background: `linear-gradient(135deg, rgba(91,127,255,0.22), rgba(124,92,255,0.18) 60%, rgba(91,127,255,0.05))`,
-          border: `1px solid ${MEVAM_COLORS.accent}55`, padding: 16,
-        }}>
+      {/* auto-gerador — somente admin / info para membros */}
+      {isAdmin ? (
+        <div style={{ padding: '18px 18px 0' }}>
           <div style={{
-            position: 'absolute', top: -40, right: -40, width: 160, height: 160,
-            background: 'radial-gradient(circle, rgba(91,127,255,0.5), transparent 70%)', filter: 'blur(20px)', pointerEvents: 'none',
-          }} />
-          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', position: 'relative' }}>
+            position: 'relative', borderRadius: 18, overflow: 'hidden',
+            background: `linear-gradient(135deg, rgba(91,127,255,0.22), rgba(124,92,255,0.18) 60%, rgba(91,127,255,0.05))`,
+            border: `1px solid ${MEVAM_COLORS.accent}55`, padding: 16,
+          }}>
             <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: 'rgba(0,0,0,0.4)', border: `1px solid ${MEVAM_COLORS.accent}55`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF',
-            }}>
-              <Icon name="wand" size={18}/>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>
-                Gerar escala automática
+              position: 'absolute', top: -40, right: -40, width: 160, height: 160,
+              background: 'radial-gradient(circle, rgba(91,127,255,0.5), transparent 70%)', filter: 'blur(20px)', pointerEvents: 'none',
+            }} />
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', position: 'relative' }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: 'rgba(0,0,0,0.4)', border: `1px solid ${MEVAM_COLORS.accent}55`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF',
+              }}>
+                <Icon name="wand" size={18}/>
               </div>
-              <div style={{ color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 12.5, marginTop: 4, lineHeight: 1.45 }}>
-                Distribui equilibrada respeitando indisponibilidades e funções obrigatórias.
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>
+                  Gerar escala automática
+                </div>
+                <div style={{ color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 12.5, marginTop: 4, lineHeight: 1.45 }}>
+                  Distribui equilibrada respeitando indisponibilidades e funções obrigatórias.
+                </div>
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={() => {
-              onGerarEscala && onGerarEscala();
-            }}>Gerar agora</Btn>
-            <Btn variant="ghost" icon={<Icon name="edit" size={14}/>} onClick={() => onToast('Edição manual: arraste membros no detalhe do culto', 'info')}>Editar</Btn>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={() => {
+                onGerarEscala && onGerarEscala();
+              }}>Gerar agora</Btn>
+              <Btn variant="ghost" icon={<Icon name="edit" size={14}/>} onClick={() => onToast('Edição manual: arraste membros no detalhe do culto', 'info')}>Editar</Btn>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ padding: '18px 18px 0' }}>
+          <Card style={{ padding: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+                <Icon name="shield" size={16}/>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>Modo visualização</div>
+                <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2, lineHeight: 1.45 }}>Apenas administradores podem gerar e editar a escala.</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* conflitos */}
       {conflitosLista.length > 0 && (
@@ -1365,10 +1597,16 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                 style={inputStyle} />
             </Field>
             <div>
-              <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>Cor do avatar</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Cor do avatar</div>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
                 {cores.map((c) => (
-                  <button key={c} onClick={() => setTomSel(c)} style={{ width: 32, height: 32, borderRadius: 999, background: c, border: tomSel === c ? `3px solid #fff` : '2px solid transparent', cursor: 'pointer', boxShadow: tomSel === c ? `0 0 10px ${c}` : 'none', transition: 'all .15s' }} />
+                  <button key={c} onClick={() => setTomSel(c)} style={{
+                    width: 22, height: 22, borderRadius: 999, flexShrink: 0,
+                    background: c, cursor: 'pointer', transition: 'all .15s',
+                    border: tomSel === c ? `2.5px solid #fff` : '2px solid transparent',
+                    boxShadow: tomSel === c ? `0 0 0 1.5px ${c}, 0 0 8px ${c}88` : 'none',
+                    transform: tomSel === c ? 'scale(1.2)' : 'scale(1)',
+                  }} />
                 ))}
               </div>
             </div>
@@ -1419,7 +1657,10 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
 
         {/* ── Sair ── */}
         <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, paddingTop: 18 }}>
-          <Btn variant="danger" full icon={<Icon name="logout" size={15}/>} onClick={onLogout}
+          <Btn variant="danger" full icon={<Icon name="logout" size={15}/>}
+            onClick={() => {
+              if (window.confirm('Deseja mesmo sair da conta?')) onLogout();
+            }}
             style={{ borderRadius: 16 }}>
             Sair da conta
           </Btn>
@@ -1456,4 +1697,4 @@ const screenWrap = {
   minHeight: '100dvh',
 };
 
-Object.assign(window, { LoginScreen, EscalaScreen, DisponibilidadeScreen, MembrosScreen, AdminScreen, PerfilScreen });
+Object.assign(window, { LoginScreen, SetupScreen, EscalaScreen, DisponibilidadeScreen, MembrosScreen, AdminScreen, PerfilScreen });

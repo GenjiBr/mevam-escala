@@ -49,7 +49,7 @@ function reducer(state, action) {
 ───────────────────────────────────────────────── */
 function TabBar({ tab, setTab, perfil }) {
   const tabs = [
-    { id: 'escala',          label: 'Escala',   icon: 'calendar' },
+    { id: 'escala',          label: 'Escala',   icon: 'home'     },
     { id: 'disponibilidade', label: 'Ausência', icon: 'ban'      },
     { id: 'membros',         label: 'Equipe',   icon: 'users'    },
     { id: 'perfil',          label: 'Perfil',   icon: 'person'   },
@@ -69,17 +69,16 @@ function TabBar({ tab, setTab, perfil }) {
     }}>
       {tabs.map((t) => {
         const active = tab === t.id;
-        const restricted = t.id === 'admin' && perfil !== 'admin';
         return (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             flex: 1, padding: '9px 6px 8px', borderRadius: 16,
             background: active ? `linear-gradient(180deg, ${MEVAM_COLORS.accent}, #3D5FE0)` : 'transparent',
             border: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-            color: active ? '#fff' : restricted ? MEVAM_COLORS.mutedSoft : MEVAM_COLORS.muted,
+            color: active ? '#fff' : MEVAM_COLORS.muted,
             fontFamily: 'Manrope', fontSize: 10, fontWeight: 600,
             transition: 'background .2s',
-            opacity: restricted ? 0.5 : 1,
+            opacity: 1,
             boxShadow: active ? `0 6px 20px ${MEVAM_COLORS.accentGlow}` : 'none',
           }}>
             <Icon name={t.icon} size={17} />
@@ -120,6 +119,7 @@ function App() {
   const [state, _dispatch] = useReducer(reducer, { membros: [], cultos: [], indispo: {}, carregando: true });
   const [toast, setToast] = useStateApp({ msg: '', kind: 'ok' });
   const [authLoading, setAuthLoading] = useStateApp(true);
+  const [equipe, setEquipe] = useStateApp(null);
 
   const showToast = (msg, kind = 'ok') => setToast({ msg, kind });
 
@@ -216,6 +216,16 @@ function App() {
       } else {
         _dispatch({ type: 'hydrate', membros, cultos, indispo });
       }
+      // Carrega equipe do membro atual
+      const membroAtual = membros.find((m) => m.id === usuario.id);
+      if (membroAtual?.equipe_id) {
+        const eq = await sbGetEquipe(membroAtual.equipe_id);
+        if (eq) setEquipe(eq);
+      }
+      // Sincroniza perfil do banco (pode ter mudado)
+      if (membroAtual?.perfil && membroAtual.perfil !== usuario.perfil) {
+        setUsuario((u) => ({ ...u, perfil: membroAtual.perfil }));
+      }
     })();
   }, [usuario?.id]);
 
@@ -229,30 +239,36 @@ function App() {
     }
   }, [state.carregando]);
 
-  /* ── Compartilhar ── */
-  const handleShare = () => {
-    const proximo = [...state.cultos].sort((a, b) => a.data.localeCompare(b.data))[0];
-    if (!proximo) return;
-    const d = formatBRDate(proximo.data);
-    const linhas = [`🎵 MEVAM Ceilândia · ${proximo.titulo}`, `📅 ${d.diaSemana}, ${d.dia} ${d.mes} · ${proximo.horario}`, ''];
-    for (const [fid, val] of Object.entries(proximo.escalados)) {
-      const f = window.FUNCOES[fid];
-      const ids = Array.isArray(val) ? val : (val ? [val] : []);
-      const nomes = ids.map((id) => state.membros.find((m) => m.id === id)?.nome).filter(Boolean).join(', ');
-      if (nomes) linhas.push(`${f.icon} ${f.label}: ${nomes}`);
+  /* ── Criar / entrar em equipe ── */
+  const handleCriarEquipe = async (nome) => {
+    try {
+      const eq = await sbCriarEquipe(nome, usuario.id);
+      setEquipe(eq);
+      setUsuario((u) => ({ ...u, perfil: 'admin' }));
+      _dispatch({ type: 'update_membro', id: usuario.id, updates: { equipe_id: eq.id, perfil: 'admin' } });
+      showToast(`Escala "${eq.nome}" criada! Código: ${eq.codigo}`, 'ok');
+    } catch (e) {
+      showToast('Erro ao criar: ' + (e.message || 'tente novamente'), 'err');
+      throw e;
     }
-    const texto = linhas.join('\n');
-    if (navigator.share) {
-      navigator.share({ title: `MEVAM Escala · ${proximo.titulo}`, text: texto }).catch(() => {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(texto);
-      showToast('Escala copiada — cole onde quiser', 'ok');
+  };
+
+  const handleEntrarEquipe = async (codigo) => {
+    try {
+      const eq = await sbEntrarEquipe(codigo, usuario.id);
+      setEquipe(eq);
+      _dispatch({ type: 'update_membro', id: usuario.id, updates: { equipe_id: eq.id } });
+      showToast(`Você entrou na equipe "${eq.nome}"!`, 'ok');
+    } catch (e) {
+      showToast(e.message || 'Erro ao entrar na equipe', 'err');
+      throw e;
     }
   };
 
   const handleLogout = async () => {
-    await SB.auth.signOut();
+    try { await SB.auth.signOut(); } catch (e) { console.warn('signOut:', e.message); }
     setUsuario(null);
+    setEquipe(null);
     setTab('escala');
   };
 
@@ -262,13 +278,14 @@ function App() {
   if (authLoading) return <SplashScreen msg="Verificando sessão..." />;
   if (!usuario)   return <LoginScreen />;
   if (state.carregando) return <SplashScreen msg="Carregando dados..." />;
+  if (!equipe) return <SetupScreen onCriar={handleCriarEquipe} onEntrar={handleEntrarEquipe} usuario={usuario} onToast={showToast} />;
 
   const screens = {
-    escala:          <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} onShare={handleShare} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
+    escala:          <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
     disponibilidade: <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     membros:         <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
     perfil:          <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
-    admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onGerarEscala={handleGerarEscala} />,
+    admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onGerarEscala={handleGerarEscala} />,
   };
 
   return (
