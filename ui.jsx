@@ -23,14 +23,22 @@ const C = window.MEVAM_COLORS = {
 // Avatar (iniciais ou foto do perfil)
 // ──────────────────────────────────────────────────────────
 function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = null }) {
+  const [imgErr, setImgErr] = React.useState(false);
+  // Reseta erro se a URL mudar (novo upload)
+  React.useEffect(() => { setImgErr(false); }, [foto]);
   const shadow = ring ? `0 0 0 2.5px ${tom}, 0 0 0 4.5px ${C.bgDeep}` : `0 2px 8px ${tom}33`;
-  if (foto) {
+  if (foto && !imgErr) {
     return (
       <div style={{
         width: size, height: size, borderRadius: 999, overflow: 'hidden', flexShrink: 0,
         boxShadow: shadow, border: ring ? `2px solid ${tom}` : 'none',
       }}>
-        <img src={foto} alt={iniciais} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img
+          src={foto}
+          alt={iniciais}
+          onError={() => setImgErr(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
       </div>
     );
   }

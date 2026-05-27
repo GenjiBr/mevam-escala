@@ -131,27 +131,40 @@ window.sbExcluirTodaEscala = async () => {
 };
 
 /* Upload da foto de perfil para Supabase Storage (bucket: avatars)
-   PRÉ-REQUISITO: criar o bucket "avatars" como público no painel Supabase
-   → Storage → New bucket → Name: avatars → Public: ON              */
+   Usa atob() para converter base64 → Blob — compatível com iOS Safari.
+   fetch('data:...') falha silenciosamente no mobile e NÃO deve ser usado. */
 window.sbUploadAvatar = async (userId, base64DataUrl) => {
-  const res = await fetch(base64DataUrl);
-  const blob = await res.blob();
-  const ext = blob.type === 'image/png' ? 'png' : 'jpg';
-  const path = `${userId}.${ext}`;
+  // ── Conversão base64 → Blob sem fetch() (funciona em iOS/Android/Desktop) ──
+  const commaIdx = base64DataUrl.indexOf(',');
+  if (commaIdx === -1) throw new Error('Formato de imagem inválido');
+  const header  = base64DataUrl.slice(0, commaIdx);
+  const b64data = base64DataUrl.slice(commaIdx + 1);
+  const mime    = (header.match(/:(.*?);/) || [])[1] || 'image/jpeg';
+  const binary  = atob(b64data);
+  const bytes   = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mime });
+
+  const ext  = mime.includes('png') ? 'png' : 'jpg';
+  const path = `${userId}.${ext}`; // fixo por usuário — upsert sobrescreve
+
+  console.log('[MEVAM] Iniciando upload avatar:', path, `(${(blob.size / 1024).toFixed(1)} KB, ${mime})`);
+
   const { error } = await SB.storage.from('avatars').upload(path, blob, {
-    upsert: true, contentType: blob.type || 'image/jpeg',
+    upsert: true,
+    contentType: mime,
   });
+
   if (error) {
-    // Diagnóstico detalhado para facilitar depuração
-    if (error.message.includes('Bucket not found') || error.message.includes('bucket')) {
-      console.error('[MEVAM] Bucket "avatars" não encontrado.');
-      console.error('[MEVAM] Crie o bucket manualmente:');
-      console.error('[MEVAM] Supabase Dashboard → Storage → New bucket → Name: avatars → Public bucket: ON');
-    }
+    console.error('[MEVAM] Erro no upload Storage:', error.message);
     throw new Error(error.message);
   }
+
   const { data: { publicUrl } } = SB.storage.from('avatars').getPublicUrl(path);
-  return publicUrl + '?t=' + Date.now();
+  // ?t= força recarregar a imagem nova ao invés da versão em cache
+  const finalUrl = publicUrl + '?t=' + Date.now();
+  console.log('[MEVAM] Upload concluído. URL:', finalUrl);
+  return finalUrl;
 };
 
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */
