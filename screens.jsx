@@ -998,7 +998,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
     <div style={screenWrap}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <div style={{ display: 'flex', gap: 6 }}>
-          <Btn variant="ghost" icon={<Icon name="calendar" size={13}/>} onClick={() => setShowCalendario(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Ver Escala</Btn>
+          <Btn variant="ghost" icon={<Icon name="calendar" size={13}/>} onClick={() => setShowCalendario(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Calendário</Btn>
           {equipe && (
             <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Criar Escala</Btn>
           )}
