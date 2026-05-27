@@ -1120,8 +1120,9 @@ function SlotPickerModal({ funcId, culto, state, onSelect, onClose, anchorRect }
 // ────────────────────────────────────────────────────────────
 function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
   const [open, setOpen] = useState(false);
-  const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
+  const [slotPicker, setSlotPicker] = useState(null); // { funcId, anchorRect } | null
   const [salvando, setSalvando] = useState(false);
+  const [pressedIdx, setPressedIdx] = useState(null); // feedback visual de toque
 
   const isAdmin = usuario?.perfil === 'admin';
   const data = formatBRDate(culto.data);
@@ -1206,21 +1207,56 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
         <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {cobertura.map((x, i) => {
             const clicavel = isAdmin;
+            const pressed  = pressedIdx === i;
+
+            // abre o picker capturando a posição do elemento no viewport
+            const abrirPicker = (el) => {
+              if (!clicavel) return;
+              const r = el.getBoundingClientRect();
+              setSlotPicker({
+                funcId: x.funcId,
+                anchorRect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height },
+              });
+            };
+
             return (
               <div
                 key={i}
+                role={clicavel ? 'button' : undefined}
+                tabIndex={clicavel ? 0 : undefined}
+                /* ── eventos de ponteiro (mouse + toque) ── */
+                onPointerDown={clicavel ? (e) => {
+                  // captura imediata da posição — antes de qualquer scroll
+                  setPressedIdx(i);
+                } : undefined}
+                onPointerUp={clicavel ? (e) => {
+                  setPressedIdx(null);
+                  abrirPicker(e.currentTarget);
+                } : undefined}
+                onPointerLeave={() => setPressedIdx(null)}
+                onPointerCancel={() => setPressedIdx(null)}
+                /* fallback onClick para desktop */
                 onClick={clicavel ? (e) => {
-                  const r = e.currentTarget.getBoundingClientRect();
-                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                  setSlotPicker({ funcId: x.funcId, anchorRect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } });
+                  abrirPicker(e.currentTarget);
+                } : undefined}
+                onKeyDown={clicavel ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') abrirPicker(e.currentTarget);
                 } : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '8px 10px', borderRadius: 12,
-                  background: clicavel && !x.membro ? 'rgba(91,127,255,0.04)' : 'transparent',
-                  border: clicavel && !x.membro ? `1px dashed ${MEVAM_COLORS.accent}44` : '1px solid transparent',
+                  background: pressed
+                    ? (x.membro ? 'rgba(255,255,255,0.09)' : 'rgba(91,127,255,0.14)')
+                    : (clicavel && !x.membro ? 'rgba(91,127,255,0.04)' : 'transparent'),
+                  border: clicavel && !x.membro
+                    ? `1px dashed ${MEVAM_COLORS.accent}${pressed ? 'BB' : '44'}`
+                    : '1px solid transparent',
                   cursor: clicavel ? 'pointer' : 'default',
-                  transition: 'background .15s',
+                  transition: 'background .1s, border-color .1s',
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation', // evita delay de 300ms no iOS
+                  userSelect: 'none',
+                  outline: 'none',
                 }}
               >
                 {/* avatar ou placeholder */}
@@ -1229,15 +1265,18 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
                 ) : (
                   <div style={{
                     width: 30, height: 30, borderRadius: 999, flexShrink: 0,
-                    background: 'rgba(91,127,255,0.08)', border: `1px dashed ${MEVAM_COLORS.accent}55`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.accent,
+                    background: pressed ? 'rgba(91,127,255,0.18)' : 'rgba(91,127,255,0.08)',
+                    border: `1px dashed ${MEVAM_COLORS.accent}${pressed ? 'BB' : '55'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: MEVAM_COLORS.accent,
+                    transition: 'background .1s',
                   }}>
                     <Icon name="plus" size={13}/>
                   </div>
                 )}
 
                 {/* nome + badge */}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, pointerEvents: 'none' }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <span style={{ fontFamily: 'Manrope', fontSize: 13, color: x.membro ? MEVAM_COLORS.text : MEVAM_COLORS.muted, fontWeight: x.membro ? 600 : 500 }}>
                       {x.membro ? x.membro.nome : 'Slot vazio'}
@@ -1250,6 +1289,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
                 {/* botão ✕ para remover (admin, slot preenchido) */}
                 {isAdmin && x.membro && (
                   <button
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); handleSave(x.funcId, null); }}
                     style={{
                       background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`,
@@ -1265,7 +1305,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
 
                 {/* badge conflito */}
                 {x.indispo && (
-                  <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.danger, background: MEVAM_COLORS.dangerSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6, flexShrink: 0 }}>
+                  <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.danger, background: MEVAM_COLORS.dangerSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6, flexShrink: 0, pointerEvents: 'none' }}>
                     Conflito
                   </span>
                 )}
@@ -1276,7 +1316,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
           {/* dica visual para admin */}
           {isAdmin && slotsVazios > 0 && (
             <div style={{ marginTop: 4, fontSize: 11, color: MEVAM_COLORS.accent, fontFamily: 'Manrope', textAlign: 'center', opacity: 0.7 }}>
-              Toque em um slot vazio para escalar um membro
+              Toque em um slot para escalar um membro
             </div>
           )}
         </div>
