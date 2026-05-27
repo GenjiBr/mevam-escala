@@ -125,39 +125,17 @@ function LoginScreen() {
         }}>
           <Icon name="sparkles" size={13} /> Escala de Louvor e Mídia
         </div>
-        {/* ── Ícones: Amar · Servir · Edificar ── */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 36, margin: '22px 0 14px',
+        <h1 style={{
+          margin: '20px 0 10px',
+          fontFamily: '"Bricolage Grotesque", "Manrope", sans-serif',
+          fontWeight: 600, fontSize: 36, lineHeight: 1.02,
+          color: MEVAM_COLORS.text, letterSpacing: -1,
         }}>
-          {/* ❤️ Coração — Amar */}
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <path d="
-              M24 42
-              C 20 38, 5 30, 5 18
-              C 5 12.5 9.5 8 15 8
-              C 18.4 8 21.4 9.9 23.1 12.7
-              C 23.5 13.3 23.8 14 24 14
-              C 24.2 14 24.5 13.3 24.9 12.7
-              C 26.6 9.9 29.6 8 33 8
-              C 38.5 8 43 12.5 43 18
-              C 43 30 28 38 24 42 Z
-            " fill="white"/>
-          </svg>
-
-          {/* 🤲 Mão aberta com palma para cima — Servir */}
-          {/* viewBox recortado para o bounding-box do path (x5-90, y30-90) */}
-          <svg width="48" height="48" viewBox="5 30 85 60" fill="white">
-            <path d="M10,55 Q15,35 35,40 L65,38 Q75,38 75,48 Q75,52 70,53 L75,53 Q85,53 85,63 Q85,70 75,71 L70,71 Q75,71 75,79 Q75,85 65,85 L35,85 Q20,85 10,70 Z"/>
-          </svg>
-
-          {/* 🏠 Casa — Edificar */}
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            {/* Casa com porta recortada via evenodd */}
-            <path fillRule="evenodd" fill="white"
-              d="M24 5 L4 23 H9 V43 H39 V23 H44 Z  M20 30 H28 V43 H20 Z"/>
-          </svg>
-        </div>
+          Amar, servir, <span style={{
+            background: 'linear-gradient(90deg, #FFFFFF, #8FA8FF)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          }}>edificar</span>
+        </h1>
         <p style={{ margin: 0, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 14, lineHeight: 1.5 }}>
           Organize a equipe, evite conflitos<br/>e prepare cada culto com clareza.
         </p>
