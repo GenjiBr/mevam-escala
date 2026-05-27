@@ -2493,22 +2493,39 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
 // ════════════════════════════════════════════════════════════
 function FotoPickerSheet({ hasFoto, onCamera, onGaleria, onRemover, onClose }) {
   const btnStyle = {
-    display: 'flex', alignItems: 'center', gap: 16, padding: '15px 18px',
+    display: 'flex', alignItems: 'center', gap: 16,
+    padding: '0 18px', minHeight: 58,
     borderRadius: 16, width: '100%', background: MEVAM_COLORS.card,
     border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.text,
     fontFamily: 'Manrope', fontSize: 15, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
   };
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'fadeIn .2s' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#0D1526', borderRadius: '24px 24px 0 0', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', padding: '20px 20px calc(44px + env(safe-area-inset-bottom))', animation: 'slideUp .25s ease' }}>
-        <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border, margin: '0 auto 20px' }} />
-        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 19, color: MEVAM_COLORS.text, marginBottom: 16 }}>Foto de perfil</div>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 480,
+        background: '#0D1526', borderRadius: '24px 24px 0 0',
+        border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+        /* padding-bottom = tab bar (~84px) + offset (18px) + breathing (12px) + safe area */
+        padding: '0 16px calc(114px + env(safe-area-inset-bottom))',
+        animation: 'slideUp .25s ease',
+      }}>
+        {/* handle */}
+        <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border, margin: '14px auto 18px' }} />
+        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 19, color: MEVAM_COLORS.text, marginBottom: 14, paddingLeft: 2 }}>
+          Foto de perfil
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button onClick={onCamera} style={btnStyle}><span style={{ fontSize: 22, lineHeight: 1 }}>📷</span><span>Tirar foto</span></button>
-          <button onClick={onGaleria} style={btnStyle}><span style={{ fontSize: 22, lineHeight: 1 }}>🖼️</span><span>Escolher da galeria</span></button>
+          <button onClick={onCamera} style={btnStyle}>
+            <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>📷</span>
+            <span>Tirar foto</span>
+          </button>
+          <button onClick={onGaleria} style={btnStyle}>
+            <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>🖼️</span>
+            <span>Escolher da galeria</span>
+          </button>
           {hasFoto && (
             <button onClick={onRemover} style={{ ...btnStyle, color: MEVAM_COLORS.danger, border: `1px solid ${MEVAM_COLORS.danger}33`, background: MEVAM_COLORS.dangerSoft }}>
-              <Icon name="trash" size={18}/><span>Remover foto</span>
+              <Icon name="trash" size={18} /><span>Remover foto</span>
             </button>
           )}
         </div>
