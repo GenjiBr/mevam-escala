@@ -228,13 +228,14 @@ function Icon({ name, size = 18 }) {
     case 'trash':    return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" {...stroke}/><path d="M10 11v5M14 11v5" {...stroke}/></svg>);
     case 'clef':     return (
       /* 𝄞 U+1D11E — MUSICAL SYMBOL G CLEF
-         Renderizado como texto para garantir o glifo correto em todos
-         os dispositivos. Herda color do botão pai (active/inativo). */
+         fontSize ≈ 0.8×s para o glifo caber dentro do container s×s.
+         overflow:hidden garante que o traço longo do clef não extravase. */
       <span aria-hidden="true" style={{
-        fontSize: Math.round(s * 1.25),
+        fontSize: Math.round(s * 0.8),
         lineHeight: 1,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: s, height: s,
+        overflow: 'hidden',
         color: 'currentColor',
       }}>𝄞</span>
     );

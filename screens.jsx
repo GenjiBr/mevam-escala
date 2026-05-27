@@ -2526,7 +2526,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
       {isAdmin ? (
         <div style={{ padding: '18px 18px 0' }}>
           <div style={{
-            position: 'relative', borderRadius: 18, overflow: 'hidden',
+            position: 'relative', borderRadius: 18,
+            /* overflow:hidden removido — impedia o border-radius dos botões internos */
             background: `linear-gradient(135deg, rgba(91,127,255,0.22), rgba(124,92,255,0.18) 60%, rgba(91,127,255,0.05))`,
             border: `1px solid ${MEVAM_COLORS.accent}55`, padding: 16,
           }}>
@@ -2580,8 +2581,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
                   <span style={{ color: MEVAM_COLORS.danger, fontWeight: 500 }}>Os dados atuais serão perdidos.</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Btn variant="ghost" full onClick={() => setShowGerarConfirm(false)}>Cancelar</Btn>
-                  <Btn variant="danger" full icon={<Icon name="sparkles" size={13}/>} onClick={() => { setShowGerarConfirm(false); onGerarEscala && onGerarEscala(semanas); }}>
+                  <Btn variant="ghost" style={{ flex: 1 }} onClick={() => setShowGerarConfirm(false)}>Cancelar</Btn>
+                  <Btn variant="danger" style={{ flex: 1, whiteSpace: 'nowrap' }} icon={<Icon name="sparkles" size={13}/>} onClick={() => { setShowGerarConfirm(false); onGerarEscala && onGerarEscala(semanas); }}>
                     Sim, substituir
                   </Btn>
                 </div>
