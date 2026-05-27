@@ -1468,7 +1468,7 @@ const navBtn = { width: 30, height: 30, borderRadius: 8, background: MEVAM_COLOR
 // ════════════════════════════════════════════════════════════
 // MEMBROS
 // ════════════════════════════════════════════════════════════
-function MembrosScreen({ state, dispatch, usuario, onToast }) {
+function MembrosScreen({ state, dispatch, usuario, equipe, onToast }) {
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('todos');
   const [selecionado, setSelecionado] = useState(null);
@@ -1522,7 +1522,7 @@ function MembrosScreen({ state, dispatch, usuario, onToast }) {
         )}
       </div>
 
-      {selecionado && <MembroDetail membro={selecionado} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setSelecionado(null)} />}
+      {selecionado && <MembroDetail membro={selecionado} state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} isAdmin={usuario.perfil === 'admin'} onToast={onToast} onClose={() => setSelecionado(null)} />}
     </div>
   );
 }
@@ -1557,9 +1557,14 @@ function MembroCard({ membro, state, onClick, self, isAdmin }) {
   );
 }
 
-function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
+function MembroDetail({ membro, state, dispatch, usuario, equipe, isAdmin, onToast, onClose }) {
   const isOwn = membro.id === usuario.id;
+  const adminPrincipalId = equipe?.criado_por;
+  const podeRemover = isAdmin && !isOwn && membro.id !== adminPrincipalId;
+
   const [editando, setEditando] = useState(false);
+  const [removendo, setRemovendo] = useState(false);
+  const [removendoLoad, setRemovendoLoad] = useState(false);
   const [funcPrincipal, setFuncPrincipal] = useState(membro.func);
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
 
@@ -1578,6 +1583,20 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
     dispatch({ type: 'update_membro', id: membro.id, updates: { func: funcPrincipal, secundarias: secundariasLimpas } });
     onToast('Funções atualizadas!', 'ok');
     setEditando(false);
+  };
+
+  const confirmarRemocao = async () => {
+    if (removendoLoad) return;
+    setRemovendoLoad(true);
+    try {
+      await dispatch({ type: 'remove_membro', id: membro.id });
+      onToast(`${membro.nome} removido da equipe.`, 'ok');
+      onClose();
+    } catch (e) {
+      onToast('Erro ao remover: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setRemovendoLoad(false);
+    }
   };
 
   return (
@@ -1684,6 +1703,31 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
                 </div>
               )}
             </div>
+
+            {/* remover da equipe — admin only */}
+            {podeRemover && (
+              <div style={{ marginTop: 24, paddingTop: 18, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
+                {removendo ? (
+                  <div style={{ padding: 14, borderRadius: 14, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, lineHeight: 1.5, marginBottom: 12 }}>
+                      Deseja realmente remover{' '}
+                      <span style={{ color: MEVAM_COLORS.danger }}>{membro.nome}</span>{' '}
+                      da equipe? Essa ação não pode ser desfeita.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Btn variant="ghost" full onClick={() => setRemovendo(false)}>Cancelar</Btn>
+                      <Btn variant="danger" full icon={<Icon name="trash" size={13}/>} onClick={confirmarRemocao}>
+                        {removendoLoad ? 'Removendo…' : 'Confirmar'}
+                      </Btn>
+                    </div>
+                  </div>
+                ) : (
+                  <Btn variant="danger" full icon={<Icon name="trash" size={14}/>} onClick={() => setRemovendo(true)}>
+                    Remover da equipe
+                  </Btn>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -2006,6 +2050,28 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const isAdmin = usuario.perfil === 'admin';
   const [showAddCulto, setShowAddCulto] = React.useState(false);
   const [showAdmins, setShowAdmins] = React.useState(false);
+  const [showGerarConfirm, setShowGerarConfirm] = React.useState(false);
+
+  // verifica se há escala com membros já distribuídos na semana atual
+  const temEscalaVigente = React.useMemo(() => {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fmtL = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const inicio = new Date(hoje); inicio.setDate(hoje.getDate() - hoje.getDay());
+    const fim = new Date(inicio); fim.setDate(inicio.getDate() + 6);
+    const iI = fmtL(inicio); const iF = fmtL(fim);
+    return state.cultos.some((c) =>
+      c.data >= iI && c.data <= iF &&
+      Object.values(c.escalados).some((v) => v !== null)
+    );
+  }, [state.cultos]);
+
+  const handleGerarClick = () => {
+    if (temEscalaVigente) {
+      setShowGerarConfirm(true);
+    } else {
+      onGerarEscala && onGerarEscala();
+    }
+  };
 
   // métricas
   const ativos = state.membros.filter((m) => m.status === 'ativo').length;
@@ -2081,12 +2147,25 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={() => {
-                onGerarEscala && onGerarEscala();
-              }}>Gerar agora</Btn>
-              <Btn variant="ghost" icon={<Icon name="shield" size={14}/>} style={{ borderColor: `${MEVAM_COLORS.accent}55`, color: '#A8BBFF', flexShrink: 0 }} onClick={() => setShowAdmins(true)}>Admin +</Btn>
-            </div>
+            {showGerarConfirm ? (
+              <div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, lineHeight: 1.5, marginBottom: 12 }}>
+                  Já existe uma escala para este período. Deseja substituí-la?{' '}
+                  <span style={{ color: MEVAM_COLORS.danger, fontWeight: 500 }}>Os dados atuais serão perdidos.</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Btn variant="ghost" full onClick={() => setShowGerarConfirm(false)}>Cancelar</Btn>
+                  <Btn variant="danger" full icon={<Icon name="sparkles" size={13}/>} onClick={() => { setShowGerarConfirm(false); onGerarEscala && onGerarEscala(); }}>
+                    Sim, substituir
+                  </Btn>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={handleGerarClick}>Gerar agora</Btn>
+                <Btn variant="ghost" icon={<Icon name="shield" size={14}/>} style={{ borderColor: `${MEVAM_COLORS.accent}55`, color: '#A8BBFF', flexShrink: 0 }} onClick={() => setShowAdmins(true)}>Admin +</Btn>
+              </div>
+            )}
           </div>
         </div>
       ) : (

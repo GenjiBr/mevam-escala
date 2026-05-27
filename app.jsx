@@ -37,6 +37,9 @@ function reducer(state, action) {
     case 'update_membro':
       return { ...state, membros: state.membros.map((m) => m.id === action.id ? { ...m, ...action.updates } : m) };
 
+    case 'remove_membro':
+      return { ...state, membros: state.membros.filter((m) => m.id !== action.id) };
+
     case 'set_loading':
       return { ...state, carregando: action.value };
 
@@ -136,6 +139,9 @@ function App() {
         break;
       case 'update_membro':
         await sbUpdateMembro(action.id, action.updates);
+        break;
+      case 'remove_membro':
+        await sbDeleteMembro(action.id);
         break;
     }
   }, []);
@@ -350,7 +356,7 @@ function App() {
   const screens = {
     escala:          <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
     disponibilidade: <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
-    membros:         <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
+    membros:         <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} />,
     perfil:          <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
     admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onGerarEscala={handleGerarEscala} onAddCultoManual={handleAddCultoManual} />,
   };

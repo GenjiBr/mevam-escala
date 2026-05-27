@@ -88,6 +88,11 @@ window.sbDeleteCulto = async (cultoId) => {
   if (error) console.error('sbDeleteCulto:', error.message);
 };
 
+window.sbDeleteMembro = async (membroId) => {
+  const { error } = await SB.from('membros').delete().eq('id', membroId);
+  if (error) { console.error('sbDeleteMembro:', error.message); throw new Error(error.message); }
+};
+
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */
 window.sbSeedCultos = async () => {
   for (const c of (window.CULTOS_INICIAIS || [])) {
