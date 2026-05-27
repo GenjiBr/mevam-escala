@@ -99,6 +99,37 @@ window.sbDeleteMembro = async (membroId) => {
   if (error) { console.error('sbDeleteMembro:', error.message); throw new Error(error.message); }
 };
 
+/* Remove o usuário de todos os slots de cultos futuros (sair da escala) */
+window.sbSairDaEscala = async (usuarioId) => {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const { data, error } = await SB.from('cultos').select('id,data,escalados').gte('data', hoje);
+  if (error) { console.error('sbSairDaEscala:', error.message); return; }
+  for (const culto of (data || [])) {
+    const escalados = culto.escalados || {};
+    let changed = false;
+    const novos = {};
+    for (const [fid, val] of Object.entries(escalados)) {
+      if (Array.isArray(val)) {
+        novos[fid] = val.filter((id) => id !== usuarioId);
+        if (novos[fid].length !== val.length) changed = true;
+      } else if (val === usuarioId) {
+        novos[fid] = null; changed = true;
+      } else {
+        novos[fid] = val;
+      }
+    }
+    if (changed) {
+      await SB.from('cultos').update({ escalados: novos }).eq('id', culto.id);
+    }
+  }
+};
+
+/* Apaga todos os cultos da equipe */
+window.sbExcluirTodaEscala = async () => {
+  const { error } = await SB.from('cultos').delete().gte('data', '2000-01-01');
+  if (error) { console.error('sbExcluirTodaEscala:', error.message); throw new Error(error.message); }
+};
+
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */
 window.sbSeedCultos = async () => {
   for (const c of (window.CULTOS_INICIAIS || [])) {

@@ -49,6 +49,24 @@ function reducer(state, action) {
     case 'remove_membro':
       return { ...state, membros: state.membros.filter((m) => m.id !== action.id) };
 
+    case 'sair_escala': {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const cultos = state.cultos.map((c) => {
+        if (c.data < hoje) return c;
+        const novos = {};
+        for (const [fid, val] of Object.entries(c.escalados || {})) {
+          if (Array.isArray(val)) novos[fid] = val.filter((id) => id !== action.usuarioId);
+          else if (val === action.usuarioId) novos[fid] = null;
+          else novos[fid] = val;
+        }
+        return { ...c, escalados: novos };
+      });
+      return { ...state, cultos };
+    }
+
+    case 'excluir_escala':
+      return { ...state, cultos: [] };
+
     case 'set_loading':
       return { ...state, carregando: action.value };
 
@@ -154,6 +172,12 @@ function App() {
         break;
       case 'remove_membro':
         await sbDeleteMembro(action.id);
+        break;
+      case 'sair_escala':
+        await sbSairDaEscala(action.usuarioId);
+        break;
+      case 'excluir_escala':
+        await sbExcluirTodaEscala();
         break;
     }
   }, []);

@@ -335,8 +335,40 @@ function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
 // ════════════════════════════════════════════════════════════
 // MODAL — código de convite
 // ════════════════════════════════════════════════════════════
-function CodigoModal({ equipe, onClose }) {
+function CodigoModal({ equipe, state, dispatch, usuario, onToast, onClose }) {
   const [copiado, setCopiado] = useState(false);
+  const [confirmando, setConfirmando] = useState(null); // null | 'sair' | 'excluir'
+  const [processando, setProcessando] = useState(false);
+  const isAdmin = usuario?.perfil === 'admin';
+
+  const handleSairEscala = async () => {
+    if (processando) return;
+    setProcessando(true);
+    try {
+      await dispatch({ type: 'sair_escala', usuarioId: usuario.id });
+      onToast('Você saiu da escala com sucesso', 'ok');
+      onClose();
+    } catch (e) {
+      onToast('Erro ao sair: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const handleExcluirEscala = async () => {
+    if (processando) return;
+    setProcessando(true);
+    try {
+      await dispatch({ type: 'excluir_escala' });
+      onToast('Escala excluída com sucesso', 'ok');
+      onClose();
+    } catch (e) {
+      onToast('Erro ao excluir: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setProcessando(false);
+    }
+  };
+
   if (!equipe) return null;
 
   const copiar = () => {
@@ -420,6 +452,74 @@ function CodigoModal({ equipe, onClose }) {
             Compartilhar
           </Btn>
         </div>
+
+        {/* separador */}
+        <div style={{ height: 1, background: MEVAM_COLORS.border, margin: '20px 0 16px' }} />
+
+        {/* ações de saída */}
+        {confirmando === null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Btn variant="danger" full
+              icon={<span style={{ fontSize: 15 }}>🚪</span>}
+              onClick={() => setConfirmando('sair')}>
+              Sair da Escala
+            </Btn>
+            {isAdmin && (
+              <Btn variant="danger" full
+                icon={<Icon name="trash" size={14}/>}
+                onClick={() => setConfirmando('excluir')}
+                style={{ opacity: 0.85 }}>
+                Excluir Escala
+              </Btn>
+            )}
+          </div>
+        )}
+
+        {/* confirmação: sair da escala */}
+        {confirmando === 'sair' && (
+          <div style={{ padding: 16, borderRadius: 16, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.28)' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>🚪</span>
+              <div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 700, marginBottom: 4 }}>
+                  Sair da Escala?
+                </div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, lineHeight: 1.55 }}>
+                  Você será removido de todos os cultos futuros. Você continua cadastrado no sistema.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="ghost" full onClick={() => setConfirmando(null)}>Cancelar</Btn>
+              <Btn variant="danger" full onClick={handleSairEscala} disabled={processando}>
+                {processando ? 'Saindo…' : 'Confirmar'}
+              </Btn>
+            </div>
+          </div>
+        )}
+
+        {/* confirmação: excluir toda a escala */}
+        {confirmando === 'excluir' && (
+          <div style={{ padding: 16, borderRadius: 16, background: 'rgba(239,68,68,0.09)', border: '1px solid rgba(239,68,68,0.4)' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.danger, fontWeight: 700, marginBottom: 4 }}>
+                  Atenção! Ação irreversível
+                </div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, lineHeight: 1.55 }}>
+                  Todos os cultos e escalações serão <span style={{ color: MEVAM_COLORS.danger, fontWeight: 600 }}>permanentemente apagados</span>. Essa ação não pode ser desfeita.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="ghost" full onClick={() => setConfirmando(null)}>Cancelar</Btn>
+              <Btn variant="danger" full icon={<Icon name="trash" size={13}/>} onClick={handleExcluirEscala} disabled={processando}>
+                {processando ? 'Excluindo…' : 'Excluir tudo'}
+              </Btn>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -722,7 +822,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
         )}
       </div>
 
-      {showCodigo && <CodigoModal equipe={equipe} onClose={() => setShowCodigo(false)} />}
+      {showCodigo && <CodigoModal equipe={equipe} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setShowCodigo(false)} />}
       {showCalendario && <CalendarEscalaModal state={state} onClose={() => setShowCalendario(false)} />}
     </div>
   );
