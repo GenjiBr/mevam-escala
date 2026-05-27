@@ -27,8 +27,9 @@ function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = nul
   // Reseta erro e gera novo timestamp de cache-bust quando a URL muda
   const fotoSrc = React.useMemo(() => {
     if (!foto) return null;
-    // ?t= quebra cache do CDN — calculado uma vez por mudança de URL
-    return foto + (foto.includes('?') ? '&' : '?') + 't=' + Date.now();
+    // Remove qualquer ?t= anterior e adiciona novo — garante sem duplicatas
+    const base = foto.split('?')[0];
+    return base + '?t=' + Date.now();
   }, [foto]);
   React.useEffect(() => { setImgErr(false); }, [foto]);
   const shadow = ring ? `0 0 0 2.5px ${tom}, 0 0 0 4.5px ${C.bgDeep}` : `0 2px 8px ${tom}33`;
