@@ -3,6 +3,51 @@
 const { useState, useMemo, useRef, useEffect } = React;
 
 // ════════════════════════════════════════════════════════════
+// Logo MEVAM — texto flutuante sem fundo
+// Substituiu o <img> com mixBlendMode:screen que mostrava o
+// retângulo branco do PNG (screen mantém branco, esconde escuro).
+// ════════════════════════════════════════════════════════════
+function MevamLogo({ small = false }) {
+  const s = small ? 0.62 : 1;
+  const px = (n) => Math.round(n * s);
+  return (
+    <div style={{
+      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+      filter: `drop-shadow(0 ${px(6)}px ${px(28)}px rgba(91,127,255,0.6))`,
+    }}>
+      {/* ── BRASÍLIA ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: px(7), marginBottom: px(3) }}>
+        <div style={{ width: px(18), height: 1, background: 'rgba(255,255,255,0.32)', borderRadius: 1 }} />
+        <span style={{
+          fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+          fontSize: px(10), letterSpacing: px(4),
+          color: 'rgba(200,215,255,0.78)', textTransform: 'uppercase',
+        }}>BRASÍLIA</span>
+        <div style={{ width: px(18), height: 1, background: 'rgba(255,255,255,0.32)', borderRadius: 1 }} />
+      </div>
+
+      {/* ── MEVAM ── */}
+      <div style={{
+        fontFamily: '"Bricolage Grotesque", Manrope, sans-serif',
+        fontWeight: 800, fontSize: px(52), letterSpacing: px(2),
+        color: '#FFFFFF', lineHeight: 1,
+      }}>MEVAM</div>
+
+      {/* ── CEILÂNDIA | DF ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: px(7), marginTop: px(3) }}>
+        <div style={{ width: px(14), height: 1, background: 'rgba(255,255,255,0.32)', borderRadius: 1 }} />
+        <span style={{
+          fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+          fontSize: px(10), letterSpacing: px(3),
+          color: 'rgba(200,215,255,0.78)', textTransform: 'uppercase',
+        }}>CEILÂNDIA | DF</span>
+        <div style={{ width: px(14), height: 1, background: 'rgba(255,255,255,0.32)', borderRadius: 1 }} />
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
 // LOGIN
 // ════════════════════════════════════════════════════════════
 function LoginScreen() {
@@ -65,10 +110,7 @@ function LoginScreen() {
 
       {/* logo */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 10, position: 'relative' }}>
-        <img src="assets/mevam-logo.png" alt="MEVAM" style={{
-          width: 168, mixBlendMode: 'screen',
-          filter: 'drop-shadow(0 6px 24px rgba(91,127,255,0.5))',
-        }} />
+        <MevamLogo />
       </div>
 
       {/* hero */}
@@ -234,7 +276,7 @@ function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
 
       {/* logo */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, position: 'relative' }}>
-        <img src="assets/mevam-logo.png" alt="MEVAM" style={{ width: 110, mixBlendMode: 'screen', filter: 'drop-shadow(0 4px 16px rgba(91,127,255,0.5))' }} />
+        <MevamLogo small />
       </div>
 
       <div style={{ position: 'relative' }}>
