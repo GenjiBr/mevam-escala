@@ -217,9 +217,9 @@ function Toast({ msg, kind = 'ok', onClose }) {
 // ──────────────────────────────────────────────────────────
 // Ícone (linha simples, herda currentColor)
 // ──────────────────────────────────────────────────────────
-function Icon({ name, size = 18 }) {
+function Icon({ name, size = 18, color }) {
   const s = size;
-  const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const stroke = { fill: 'none', stroke: color || 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
   switch (name) {
     case 'calendar': return (<svg width={s} height={s} viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" {...stroke}/><path d="M3 9h18M8 3v4M16 3v4" {...stroke}/></svg>);
     case 'home':     return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M3 11L12 3l9 8v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9z" {...stroke}/><path d="M9 21V13h6v8" {...stroke}/></svg>);
@@ -243,6 +243,7 @@ function Icon({ name, size = 18 }) {
     case 'pin':      return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M12 21s-7-6-7-12a7 7 0 0114 0c0 6-7 12-7 12z" {...stroke}/><circle cx="12" cy="9" r="2.5" {...stroke}/></svg>);
     case 'x':        return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M6 6l12 12M6 18L18 6" {...stroke}/></svg>);
     case 'trash':    return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" {...stroke}/><path d="M10 11v5M14 11v5" {...stroke}/></svg>);
+    case 'image':    return (<svg width={s} height={s} viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" {...stroke}/><circle cx="8.5" cy="8.5" r="1.5" {...stroke}/><path d="M21 15l-5-5L5 21" {...stroke}/></svg>);
     case 'clef':     return (
       /* 𝄞 U+1D11E — MUSICAL SYMBOL G CLEF
          fontSize ≈ 0.8×s para o glifo caber dentro do container s×s.

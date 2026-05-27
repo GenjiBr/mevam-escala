@@ -198,3 +198,33 @@ window.sbGetEquipe = async (id) => {
   const { data } = await SB.from('equipes').select('*').eq('id', id).maybeSingle();
   return data || null;
 };
+
+/* ─────────────────────────────────────────────────
+   Repertório de músicas
+───────────────────────────────────────────────── */
+window.sbGetMusicas = async (equipeId) => {
+  const { data, error } = await SB.from('musicas').select('*').eq('equipe_id', equipeId).order('criado_em');
+  if (error) { console.error('sbGetMusicas:', error.message); return []; }
+  return data || [];
+};
+
+window.sbInsertMusica = async (musica) => {
+  const { data, error } = await SB.from('musicas').insert(musica).select().single();
+  if (error) { console.error('sbInsertMusica:', error.message); throw new Error(error.message); }
+  return data;
+};
+
+window.sbUpdateMusica = async (id, updates) => {
+  const { error } = await SB.from('musicas').update(updates).eq('id', id);
+  if (error) { console.error('sbUpdateMusica:', error.message); throw new Error(error.message); }
+};
+
+window.sbDeleteMusica = async (id) => {
+  const { error } = await SB.from('musicas').delete().eq('id', id);
+  if (error) { console.error('sbDeleteMusica:', error.message); throw new Error(error.message); }
+};
+
+window.sbUpdateCultoMusicas = async (cultoId, musicas) => {
+  const { error } = await SB.from('cultos').update({ musicas }).eq('id', cultoId);
+  if (error) { console.error('sbUpdateCultoMusicas:', error.message); }
+};

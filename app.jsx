@@ -65,10 +65,27 @@ function reducer(state, action) {
     }
 
     case 'excluir_escala':
-      return { ...state, cultos: [] };
+      return { ...state, cultos: [], musicas: [] };
 
     case 'set_loading':
       return { ...state, carregando: action.value };
+
+    case 'set_musicas':
+      return { ...state, musicas: action.musicas };
+
+    case 'add_musica':
+      return { ...state, musicas: [...(state.musicas || []), action.musica] };
+
+    case 'remove_musica':
+      return { ...state, musicas: (state.musicas || []).filter((m) => m.id !== action.id) };
+
+    case 'update_musica':
+      return { ...state, musicas: (state.musicas || []).map((m) => m.id === action.id ? { ...m, ...action.updates } : m) };
+
+    case 'update_culto_musicas': {
+      const cultos = state.cultos.map((c) => c.id === action.cultoId ? { ...c, musicas: action.musicas } : c);
+      return { ...state, cultos };
+    }
 
     default: return state;
   }
@@ -146,7 +163,7 @@ function SplashScreen({ msg = 'Carregando...' }) {
 function App() {
   const [usuario, setUsuario] = useStateApp(null);
   const [tab, setTab] = useStateApp('escala');
-  const [state, _dispatch] = useReducer(reducer, { membros: [], cultos: [], indispo: {}, carregando: true });
+  const [state, _dispatch] = useReducer(reducer, { membros: [], cultos: [], indispo: {}, musicas: [], carregando: true });
   const [toast, setToast] = useStateApp({ msg: '', kind: 'ok' });
   const [authLoading, setAuthLoading] = useStateApp(true);
   const [equipe, setEquipe] = useStateApp(null);
@@ -179,6 +196,15 @@ function App() {
         break;
       case 'excluir_escala':
         await sbExcluirTodaEscala();
+        break;
+      case 'remove_musica':
+        await sbDeleteMusica(action.id);
+        break;
+      case 'update_musica':
+        await sbUpdateMusica(action.id, action.updates);
+        break;
+      case 'update_culto_musicas':
+        await sbUpdateCultoMusicas(action.cultoId, action.musicas);
         break;
     }
   }, []);
@@ -401,6 +427,12 @@ function App() {
       }
     })();
   }, [usuario?.id]);
+
+  /* ── Carrega repertório quando a equipe muda ── */
+  useEffectApp(() => {
+    if (!equipe?.id) { _dispatch({ type: 'set_musicas', musicas: [] }); return; }
+    sbGetMusicas(equipe.id).then((musicas) => _dispatch({ type: 'set_musicas', musicas }));
+  }, [equipe?.id]);
 
   /* ── Toast de boas-vindas ── */
   useEffectApp(() => {

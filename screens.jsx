@@ -983,11 +983,398 @@ function CalendarEscalaModal({ state, onClose }) {
 const navBtnStyle = { width: 30, height: 30, borderRadius: 8, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.text, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
 
 // ════════════════════════════════════════════════════════════
+// MÚSICAS — utilitários
+// ════════════════════════════════════════════════════════════
+const TONS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const m = String(url).match(/(?:v=|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function ytThumb(url) {
+  const id = extractYouTubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+}
+
+// ── Ícone YouTube SVG inline ──
+function YTIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M22.5 6.5s-.25-1.75-1-2.5c-.97-1.02-2.06-1.02-2.56-1.08C16.44 2.75 12 2.75 12 2.75s-4.44 0-6.94.17c-.5.06-1.59.06-2.56 1.08C1.75 4.75 1.5 6.5 1.5 6.5S1.25 8.53 1.25 10.56v1.88c0 2.03.25 4.06.25 4.06s.25 1.75 1 2.5c.97 1.02 2.25.98 2.81 1.09C7.25 20.25 12 20.25 12 20.25s4.44 0 6.94-.18c.5-.06 1.59-.06 2.56-1.08.75-.75 1-2.5 1-2.5s.25-2.03.25-4.06v-1.88C22.75 8.53 22.5 6.5 22.5 6.5zM9.75 14.5v-7l6.5 3.5-6.5 3.5z" fill="#FF0000"/>
+    </svg>
+  );
+}
+
+// ── Card de música no repertório ──
+function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false }) {
+  const [confirmDel, setConfirmDel] = useState(false);
+  const thumb = ytThumb(musica.url_youtube);
+  const ytId  = extractYouTubeId(musica.url_youtube);
+
+  if (compact) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 10 }}>
+        {thumb && <img src={thumb} alt="" style={{ width: 40, height: 30, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, color: MEVAM_COLORS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{musica.nome}</div>
+          <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
+            {musica.tom && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '1px 6px', borderRadius: 4 }}>• {musica.tom}</span>}
+            {musica.tom_original && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.12)', padding: '1px 6px', borderRadius: 4 }}>Tom Original</span>}
+          </div>
+        </div>
+        {ytId && <a href={`https://youtu.be/${ytId}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}><YTIcon size={16}/></a>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 12, padding: '12px 14px', background: MEVAM_COLORS.card, border: `1px solid ${confirmDel ? 'rgba(239,68,68,0.4)' : MEVAM_COLORS.border}`, borderRadius: confirmDel ? '14px 14px 0 0' : 14 }}>
+        {thumb
+          ? <img src={thumb} alt="" style={{ width: 64, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+          : <div style={{ width: 64, height: 48, borderRadius: 8, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#A8BBFF', fontSize: 22 }}>🎵</div>
+        }
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'Manrope', fontSize: 13.5, fontWeight: 600, color: MEVAM_COLORS.text, lineHeight: 1.3 }}>{musica.nome}</div>
+          <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
+            {musica.tom && <span style={{ fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 8px', borderRadius: 5 }}>• {musica.tom}</span>}
+            {musica.tom_original && <span style={{ fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.12)', padding: '2px 8px', borderRadius: 5 }}>Tom Original</span>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          {ytId && (
+            <a href={`https://youtu.be/${ytId}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', padding: 4 }}>
+              <YTIcon size={20}/>
+            </a>
+          )}
+          {isAdmin && !confirmDel && (
+            <>
+              <button onClick={onEdit} style={{ background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: '#A8BBFF', display: 'flex', alignItems: 'center' }}>
+                <Icon name="edit" size={13}/>
+              </button>
+              <button onClick={() => setConfirmDel(true)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center' }}>
+                <Icon name="trash" size={13}/>
+              </button>
+            </>
+          )}
+          {isAdmin && confirmDel && (
+            <button onClick={() => setConfirmDel(false)} style={{ background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center' }}>
+              <Icon name="x" size={13}/>
+            </button>
+          )}
+        </div>
+      </div>
+      {confirmDel && (
+        <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
+          <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, marginBottom: 8 }}>Remover <strong style={{ color: MEVAM_COLORS.text }}>"{musica.nome}"</strong> do repertório?</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variant="ghost" full onClick={() => setConfirmDel(false)}>Cancelar</Btn>
+            <Btn variant="danger" full icon={<Icon name="trash" size={12}/>} onClick={onDelete}>Remover</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Modal adicionar / editar música ──
+function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose }) {
+  const isEdit = !!musica;
+  const [url, setUrl]             = useState(musica?.url_youtube || '');
+  const [nome, setNome]           = useState(musica?.nome || '');
+  const [tom, setTom]             = useState(musica?.tom || '');
+  const [tomOriginal, setTomOrig] = useState(musica?.tom_original || false);
+  const [buscando, setBuscando]   = useState(false);
+  const [salvando, setSalvando]   = useState(false);
+
+  const buscarTitulo = async () => {
+    const u = url.trim();
+    if (!u) return;
+    setBuscando(true);
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(u)}&format=json`);
+      if (!res.ok) throw new Error('Vídeo não encontrado');
+      const d = await res.json();
+      setNome(d.title);
+    } catch (e) {
+      onToast('Não foi possível buscar o título: ' + e.message, 'err');
+    } finally { setBuscando(false); }
+  };
+
+  const handleSalvar = async () => {
+    if (!nome.trim()) { onToast('Informe o nome da música.', 'err'); return; }
+    setSalvando(true);
+    try {
+      const payload = { nome: nome.trim(), url_youtube: url.trim() || null, tom: tom || null, tom_original: tomOriginal };
+      if (isEdit) {
+        await dispatch({ type: 'update_musica', id: musica.id, updates: payload });
+        onToast('Música atualizada!', 'ok');
+      } else {
+        const nova = await sbInsertMusica({ ...payload, equipe_id: equipe.id, adicionado_por: usuario.id });
+        dispatch({ type: 'add_musica', musica: nova });
+        onToast('Música adicionada ao repertório!', 'ok');
+      }
+      onClose();
+    } catch (e) {
+      onToast('Erro ao salvar: ' + (e.message || 'tente novamente'), 'err');
+    } finally { setSalvando(false); }
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .15s' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: '20px 20px 32px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)' }}>
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 18px' }} />
+        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, marginBottom: 18, letterSpacing: -0.3 }}>
+          {isEdit ? 'Editar música' : 'Adicionar música'}
+        </div>
+
+        {/* URL + Buscar */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 6 }}>Link do YouTube</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={url} onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button onClick={buscarTitulo} disabled={buscando || !url.trim()} style={{ padding: '0 14px', borderRadius: 12, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}55`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: (!url.trim() || buscando) ? 0.5 : 1 }}>
+              {buscando ? '...' : 'Buscar'}
+            </button>
+          </div>
+          {ytThumb(url) && <img src={ytThumb(url)} alt="" style={{ marginTop: 8, width: '100%', height: 120, objectFit: 'cover', borderRadius: 10 }} />}
+        </div>
+
+        {/* Nome */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 6 }}>Nome da música</div>
+          <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da música" style={inputStyle} />
+        </div>
+
+        {/* Tom */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 8 }}>Tom</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {TONS.map((t) => (
+              <button key={t} onClick={() => setTom(tom === t ? '' : t)} style={{ padding: '6px 12px', borderRadius: 8, fontFamily: 'Manrope', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: tom === t ? MEVAM_COLORS.accentSoft : 'rgba(255,255,255,0.04)', border: `1px solid ${tom === t ? MEVAM_COLORS.accent + '99' : MEVAM_COLORS.border}`, color: tom === t ? '#A8BBFF' : MEVAM_COLORS.muted, transition: 'all .12s' }}>{t}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tom original toggle */}
+        <button onClick={() => setTomOrig((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 14px', background: tomOriginal ? 'rgba(243,156,18,0.08)' : MEVAM_COLORS.card, border: `1px solid ${tomOriginal ? 'rgba(243,156,18,0.4)' : MEVAM_COLORS.border}`, borderRadius: 12, cursor: 'pointer', marginBottom: 18, transition: 'all .15s' }}>
+          <div style={{ width: 36, height: 20, borderRadius: 999, background: tomOriginal ? '#F39C12' : MEVAM_COLORS.border, position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', top: 2, left: tomOriginal ? 18 : 2, width: 16, height: 16, borderRadius: 999, background: '#fff', transition: 'left .15s' }} />
+          </div>
+          <span style={{ fontFamily: 'Manrope', fontSize: 13.5, fontWeight: 600, color: tomOriginal ? '#F39C12' : MEVAM_COLORS.muted }}>Tom original</span>
+        </button>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn variant="ghost" full onClick={onClose}>Cancelar</Btn>
+          <Btn variant="accent" full onClick={handleSalvar} disabled={salvando || !nome.trim()}>
+            {salvando ? 'Salvando…' : isEdit ? 'Salvar' : 'Adicionar'}
+          </Btn>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Sheet completo do repertório ──
+function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
+  const [busca, setBusca]         = useState('');
+  const [showAdd, setShowAdd]     = useState(false);
+  const [editMusica, setEditMusica] = useState(null);
+  const isAdmin = usuario?.perfil === 'admin';
+
+  const musicas = useMemo(() =>
+    (state.musicas || []).filter((m) => m.equipe_id === equipe?.id),
+    [state.musicas, equipe?.id]
+  );
+  const filtradas = useMemo(() => {
+    const q = busca.toLowerCase();
+    if (!q) return musicas;
+    return musicas.filter((m) => m.nome.toLowerCase().includes(q) || (m.tom || '').toLowerCase().includes(q));
+  }, [musicas, busca]);
+
+  const handleDelete = async (m) => {
+    try {
+      await dispatch({ type: 'remove_musica', id: m.id });
+      onToast(`"${m.nome}" removida.`, 'ok');
+    } catch (e) { onToast('Erro: ' + e.message, 'err'); }
+  };
+
+  return ReactDOM.createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: MEVAM_COLORS.bgDeep, display: 'flex', flexDirection: 'column', animation: 'fadeIn .18s' }}>
+      {/* header */}
+      <div style={{ padding: '52px 18px 12px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${MEVAM_COLORS.border}`, flexShrink: 0, background: `linear-gradient(180deg, rgba(91,127,255,0.1) 0%, transparent 100%)` }}>
+        <button onClick={onClose} style={{ background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 10, padding: '8px 10px', cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center', transform: 'rotate(180deg)' }}>
+          <Icon name="chevron" size={16}/>
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 20, color: MEVAM_COLORS.text, letterSpacing: -0.4 }}>Repertório</div>
+          <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope' }}>{musicas.length} música{musicas.length !== 1 ? 's' : ''}</div>
+        </div>
+        <Btn variant="accent" icon={<Icon name="plus" size={13}/>} onClick={() => setShowAdd(true)} style={{ padding: '8px 14px', fontSize: 12.5 }}>
+          Adicionar
+        </Btn>
+      </div>
+
+      {/* busca */}
+      <div style={{ padding: '12px 18px 8px', flexShrink: 0 }}>
+        <input
+          value={busca} onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome ou tom..."
+          style={{ ...inputStyle, paddingLeft: 14 }}
+        />
+      </div>
+
+      {/* lista */}
+      <div className="mevam-scroll" style={{ flex: 1, overflowY: 'auto', padding: '4px 18px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {filtradas.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: MEVAM_COLORS.mutedSoft }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🎵</div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.muted }}>
+              {busca ? 'Nenhuma música encontrada' : 'Repertório vazio'}
+            </div>
+            <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+              {busca ? 'Tente outros termos.' : 'Clique em "Adicionar" para incluir músicas.'}
+            </div>
+          </div>
+        )}
+        {filtradas.map((m) => (
+          <MusicaCard
+            key={m.id} musica={m} isAdmin={isAdmin}
+            onEdit={() => setEditMusica(m)}
+            onDelete={() => handleDelete(m)}
+          />
+        ))}
+      </div>
+
+      {showAdd && <AddMusicaModal equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} />}
+      {editMusica && <AddMusicaModal musica={editMusica} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
+    </div>,
+    document.body
+  );
+}
+
+// ── Sheet de músicas por culto (admin seleciona do repertório) ──
+function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, onClose }) {
+  const [busca, setBusca]       = useState('');
+  const [showAdd, setShowAdd]   = useState(false);
+  const [salvando, setSalvando] = useState(false);
+
+  const cultoMusicas = useMemo(() =>
+    (culto.musicas || []).map((id) => (state.musicas || []).find((m) => m.id === id)).filter(Boolean),
+    [culto.musicas, state.musicas]
+  );
+
+  const repertorio = useMemo(() => {
+    const q = busca.toLowerCase();
+    const naEscala = new Set(culto.musicas || []);
+    return (state.musicas || [])
+      .filter((m) => m.equipe_id === equipe?.id && !naEscala.has(m.id))
+      .filter((m) => !q || m.nome.toLowerCase().includes(q) || (m.tom || '').toLowerCase().includes(q));
+  }, [state.musicas, equipe?.id, culto.musicas, busca]);
+
+  const addToCulto = async (musica) => {
+    if ((culto.musicas || []).length >= 5) { onToast('Máximo de 5 músicas por culto.', 'err'); return; }
+    if (salvando) return;
+    setSalvando(true);
+    const novas = [...(culto.musicas || []), musica.id];
+    try {
+      await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
+      setBusca('');
+    } catch (e) { onToast('Erro: ' + e.message, 'err'); }
+    finally { setSalvando(false); }
+  };
+
+  const removeFromCulto = async (musicaId) => {
+    const novas = (culto.musicas || []).filter((id) => id !== musicaId);
+    try {
+      await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
+    } catch (e) { onToast('Erro: ' + e.message, 'err'); }
+  };
+
+  return ReactDOM.createPortal(
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: '20px 18px 32px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', maxHeight: '80dvh', display: 'flex', flexDirection: 'column', animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)' }}>
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 16px' }} />
+        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, marginBottom: 4, letterSpacing: -0.3 }}>Músicas do culto</div>
+        <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginBottom: 14 }}>{culto.titulo} · até 5 músicas</div>
+
+        <div className="mevam-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* músicas já no culto */}
+          {cultoMusicas.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 6 }}>
+                No culto ({cultoMusicas.length}/5)
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {cultoMusicas.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1 }}><MusicaCard musica={m} isAdmin={false} compact /></div>
+                    <button onClick={() => removeFromCulto(m.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.danger, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                      <Icon name="x" size={13}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* busca no repertório */}
+          {(culto.musicas || []).length < 5 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 6 }}>
+                Adicionar do repertório
+              </div>
+              <input
+                value={busca} onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar música..."
+                style={{ ...inputStyle, marginBottom: 8 }}
+              />
+              {repertorio.slice(0, 8).map((m) => (
+                <button key={m.id} onClick={() => addToCulto(m)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 12px', background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 12, cursor: 'pointer', marginBottom: 6, textAlign: 'left' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13, fontWeight: 600, color: MEVAM_COLORS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nome}</div>
+                    {m.tom && <span style={{ fontSize: 10, color: MEVAM_COLORS.accent }}>{m.tom}</span>}
+                  </div>
+                  <Icon name="plus" size={14} color={MEVAM_COLORS.accent} />
+                </button>
+              ))}
+              {repertorio.length === 0 && busca && (
+                <div style={{ textAlign: 'center', padding: '12px 0', color: MEVAM_COLORS.mutedSoft, fontSize: 12.5, fontFamily: 'Manrope' }}>
+                  Não encontrada.
+                  <button onClick={() => { setBusca(''); setShowAdd(true); }} style={{ display: 'block', margin: '8px auto 0', color: MEVAM_COLORS.accent, background: 'none', border: 'none', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+                    + Adicionar ao repertório
+                  </button>
+                </div>
+              )}
+              {repertorio.length === 0 && !busca && (
+                <div style={{ textAlign: 'center', padding: '12px 0', color: MEVAM_COLORS.mutedSoft, fontSize: 12.5, fontFamily: 'Manrope' }}>Todas as músicas já estão no culto.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Btn variant="ghost" full onClick={onClose} style={{ marginTop: 14 }}>Fechar</Btn>
+      </div>
+      {showAdd && <AddMusicaModal equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} />}
+    </div>,
+    document.body
+  );
+}
+
+// ════════════════════════════════════════════════════════════
 // ESCALA (home)
 // ════════════════════════════════════════════════════════════
 function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick, onExcluirEquipe, onSairEquipe }) {
   const [showCodigo, setShowCodigo] = useState(false);
   const [showCalendario, setShowCalendario] = useState(false);
+  const [showMusicas, setShowMusicas] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
 
   const membro = state.membros.find((m) => m.id === usuario.id);
@@ -1030,6 +1417,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <div style={{ display: 'flex', gap: 6 }}>
           <Btn variant="ghost" icon={<Icon name="calendar" size={13}/>} onClick={() => setShowCalendario(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Calendário</Btn>
+          <Btn variant="ghost" icon={<Icon name="mic" size={13}/>} onClick={() => setShowMusicas(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Músicas</Btn>
           {equipe && (
             <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Criar Escala</Btn>
           )}
@@ -1126,6 +1514,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
       </div>
 
       {showCodigo && <CodigoModal equipe={equipe} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setShowCodigo(false)} onExcluirEquipe={onExcluirEquipe} onSairEquipe={onSairEquipe} />}
+      {showMusicas && <MusicasSheet state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={onToast} onClose={() => setShowMusicas(false)} />}
       {showCalendario && <CalendarEscalaModal state={state} onClose={() => setShowCalendario(false)} />}
     </div>
   );
@@ -1453,6 +1842,12 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   const [open, setOpen] = useState(false);
   const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
   const [salvando, setSalvando] = useState(false);
+  const [showMusicasSheet, setShowMusicasSheet] = useState(false);
+
+  const cultoMusicas = useMemo(() =>
+    (culto.musicas || []).map((id) => (state.musicas || []).find((m) => m.id === id)).filter(Boolean),
+    [culto.musicas, state.musicas]
+  );
 
   const isAdmin = usuario?.perfil === 'admin';
   const data = formatBRDate(culto.data);
@@ -1603,6 +1998,25 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
         </div>
       )}
 
+      {/* ── Músicas do culto ── */}
+      {(cultoMusicas.length > 0 || isAdmin) && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
+          {cultoMusicas.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: isAdmin ? 8 : 0 }}>
+              {cultoMusicas.map((m) => <MusicaCard key={m.id} musica={m} isAdmin={false} compact />)}
+            </div>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => setShowMusicasSheet(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Icon name="mic" size={12}/> {cultoMusicas.length > 0 ? `Músicas (${cultoMusicas.length}/5)` : '+ Músicas do culto'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* modal de seleção (portal → document.body) */}
       {slotPicker && (
         <SlotPickerModal
@@ -1612,6 +2026,17 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
           equipe={equipe}
           onSelect={(membroId) => handleSave(slotPicker.funcId, membroId)}
           onClose={() => setSlotPicker(null)}
+        />
+      )}
+      {showMusicasSheet && (
+        <CultoMusicasSheet
+          culto={culto}
+          state={state}
+          equipe={equipe}
+          usuario={usuario}
+          dispatch={dispatch}
+          onToast={onToast}
+          onClose={() => setShowMusicasSheet(false)}
         />
       )}
     </Card>
@@ -2897,7 +3322,9 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [foto, setFoto] = useState(membro.foto || null);
   const [uploadando, setUploadando] = useState(false);
   const [saveState, setSaveState] = useState('idle'); // 'idle' | 'saving' | 'saved'
+  const [showFotoMenu, setShowFotoMenu] = useState(false);
   const fotoInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   // ── Carrega foto ao abrir perfil e sincroniza quando state.membros muda ──
   useEffect(() => {
@@ -2998,19 +3425,15 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       {/* hero do perfil */}
       <div style={{ padding: '32px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, background: `radial-gradient(80% 50% at 50% 0%, ${tomSel}22 0%, transparent 70%)`, position: 'relative' }}>
 
-        {/* input oculto — acionado via ref (funciona em iOS/Android/Desktop) */}
-        <input
-          ref={fotoInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleFotoChange}
-        />
+        {/* input galeria — sem capture */}
+        <input ref={fotoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFotoChange} />
+        {/* input câmera — capture direciona para câmera em Android/iOS */}
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFotoChange} />
 
         <div style={{ position: 'relative' }}>
-          {/* avatar clicável — button + ref.click() funciona em todos os browsers mobile */}
+          {/* avatar clicável — abre menu de fonte da foto */}
           <button
-            onClick={() => fotoInputRef.current?.click()}
+            onClick={() => setShowFotoMenu(true)}
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: 999, display: 'block' }}>
             <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={90} ring foto={foto} />
             {/* overlay câmera / spinner */}
@@ -3023,13 +3446,12 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
             </div>
           </button>
 
-          {/* badge 📷 câmera — esquerda (ou centralizado se não tiver foto) */}
+          {/* badge 📷 câmera — borda inferior direita do círculo */}
           <button
-            onClick={(e) => { e.stopPropagation(); fotoInputRef.current?.click(); }}
+            onClick={(e) => { e.stopPropagation(); setShowFotoMenu(true); }}
             style={{
-              position: 'absolute', bottom: 0,
-              ...(foto ? { left: 0 } : { left: '50%', transform: 'translateX(-50%)' }),
-              width: 30, height: 30, borderRadius: 999,
+              position: 'absolute', bottom: 2, right: 2,
+              width: 28, height: 28, borderRadius: 999,
               background: tomSel, border: '2.5px solid #04081A',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
@@ -3037,13 +3459,13 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
             <Icon name="camera" size={13} />
           </button>
 
-          {/* badge 🗑️ lixeira — direita, só aparece se tiver foto */}
+          {/* badge 🗑️ lixeira — borda inferior esquerda, só aparece se tiver foto */}
           {foto && !uploadando && (
             <button
               onClick={(e) => { e.stopPropagation(); handleRemoverFoto(); }}
               style={{
-                position: 'absolute', bottom: 0, right: 0,
-                width: 30, height: 30, borderRadius: 999,
+                position: 'absolute', bottom: 2, left: 2,
+                width: 28, height: 28, borderRadius: 999,
                 background: 'rgba(4,8,26,0.88)',
                 border: `2.5px solid ${MEVAM_COLORS.danger}88`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -3064,6 +3486,91 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
           </div>
         </div>
       </div>
+
+      {/* ── Bottom sheet: escolher fonte da foto ── */}
+      {showFotoMenu && ReactDOM.createPortal(
+        <div
+          onClick={() => setShowFotoMenu(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 480, margin: '0 auto',
+              background: '#0A1326',
+              borderTopLeftRadius: 28, borderTopRightRadius: 28,
+              padding: '20px 18px 32px',
+              border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
+              animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
+            }}
+          >
+            {/* handle */}
+            <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 20px' }} />
+
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, textAlign: 'center', marginBottom: 16, letterSpacing: -0.3 }}>
+              Foto de perfil
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Tirar foto */}
+              <button
+                onClick={() => { setShowFotoMenu(false); cameraInputRef.current?.click(); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 16px', borderRadius: 16,
+                  background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+                  cursor: 'pointer', textAlign: 'left', width: '100%',
+                }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="camera" size={18} color="#A8BBFF" />
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.text }}>Tirar foto</div>
+                  <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 1 }}>Usar câmera do dispositivo</div>
+                </div>
+              </button>
+
+              {/* Escolher da galeria */}
+              <button
+                onClick={() => { setShowFotoMenu(false); fotoInputRef.current?.click(); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 16px', borderRadius: 16,
+                  background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
+                  cursor: 'pointer', textAlign: 'left', width: '100%',
+                }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(124,92,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="image" size={18} color="#A8BBFF" />
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.text }}>Escolher da galeria</div>
+                  <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 1 }}>Selecionar foto existente</div>
+                </div>
+              </button>
+
+              {/* Cancelar */}
+              <button
+                onClick={() => setShowFotoMenu(false)}
+                style={{
+                  marginTop: 4, padding: '13px 16px', borderRadius: 14,
+                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`,
+                  fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.muted,
+                  cursor: 'pointer', width: '100%',
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
