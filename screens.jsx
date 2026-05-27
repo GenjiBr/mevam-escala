@@ -2858,6 +2858,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [foto, setFoto] = useState(membro.foto || null);
   const [uploadando, setUploadando] = useState(false);
   const [saveState, setSaveState] = useState('idle'); // 'idle' | 'saving' | 'saved'
+  const fotoInputRef = useRef(null);
 
   // ── Carrega foto ao abrir perfil e sincroniza quando state.membros muda ──
   useEffect(() => {
@@ -2904,10 +2905,24 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   };
 
   const handleRemoverFoto = async () => {
-    setFoto(null);
-    await SB.from('membros').update({ foto: null }).eq('id', usuario.id);
-    dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: null } });
-    onToast('Foto removida', 'ok');
+    if (!window.confirm('Deseja remover sua foto de perfil?')) return;
+    try {
+      // Apaga o arquivo do Storage (extrai path do bucket a partir da URL)
+      if (foto) {
+        const path = foto.split('/avatars/')[1]?.split('?')[0];
+        if (path) {
+          const { error: storErr } = await SB.storage.from('avatars').remove([path]);
+          if (storErr) console.warn('[MEVAM] Storage remove:', storErr.message);
+        }
+      }
+      await SB.from('membros').update({ foto: null }).eq('id', usuario.id);
+      setFoto(null);
+      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: null } });
+      onToast('Foto removida', 'ok');
+    } catch (err) {
+      console.error('[MEVAM] Erro ao remover foto:', err);
+      onToast('Erro ao remover foto', 'err');
+    }
   };
 
   const cores = ['#5B7FFF','#F39C12','#E67E22','#8E44AD','#E74C3C','#27AE60','#2980B9','#1ABC9C','#EC4899','#3B6FB5','#EF4444','#6366F1'];
@@ -2944,18 +2959,20 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       {/* hero do perfil */}
       <div style={{ padding: '32px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, background: `radial-gradient(80% 50% at 50% 0%, ${tomSel}22 0%, transparent 70%)`, position: 'relative' }}>
 
-        {/* input de arquivo oculto — abre seletor nativo (galeria + câmera no mobile) */}
+        {/* input oculto — acionado via ref (funciona em iOS/Android/Desktop) */}
         <input
+          ref={fotoInputRef}
           type="file"
           accept="image/*"
-          id="fotoInput_perfil"
           style={{ display: 'none' }}
           onChange={handleFotoChange}
         />
 
         <div style={{ position: 'relative' }}>
-          {/* label abre o seletor de arquivo nativamente em qualquer plataforma */}
-          <label htmlFor="fotoInput_perfil" style={{ cursor: 'pointer', display: 'block', borderRadius: 999 }}>
+          {/* avatar clicável — button + ref.click() funciona em todos os browsers mobile */}
+          <button
+            onClick={() => fotoInputRef.current?.click()}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: 999, display: 'block' }}>
             <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={90} ring foto={foto} />
             {/* overlay câmera / spinner */}
             <div style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'rgba(0,0,0,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: uploadando ? 1 : 0, transition: 'opacity .2s' }}
@@ -2965,13 +2982,37 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                 ? <div style={{ width: 24, height: 24, borderRadius: 999, border: '2.5px solid rgba(255,255,255,0.85)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
                 : <Icon name="camera" size={22} />}
             </div>
-          </label>
+          </button>
 
-          {/* badge câmera no canto */}
-          <label htmlFor="fotoInput_perfil"
-            style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 999, background: tomSel, border: '2.5px solid #04081A', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          {/* badge 📷 câmera — esquerda (ou centralizado se não tiver foto) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); fotoInputRef.current?.click(); }}
+            style={{
+              position: 'absolute', bottom: 0,
+              ...(foto ? { left: 0 } : { left: '50%', transform: 'translateX(-50%)' }),
+              width: 30, height: 30, borderRadius: 999,
+              background: tomSel, border: '2.5px solid #04081A',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}>
             <Icon name="camera" size={13} />
-          </label>
+          </button>
+
+          {/* badge 🗑️ lixeira — direita, só aparece se tiver foto */}
+          {foto && !uploadando && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRemoverFoto(); }}
+              style={{
+                position: 'absolute', bottom: 0, right: 0,
+                width: 30, height: 30, borderRadius: 999,
+                background: 'rgba(4,8,26,0.88)',
+                border: `2.5px solid ${MEVAM_COLORS.danger}88`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: MEVAM_COLORS.danger,
+              }}>
+              <Icon name="trash" size={13} />
+            </button>
+          )}
         </div>
 
         <div style={{ textAlign: 'center' }}>
@@ -3009,16 +3050,6 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                 ))}
               </div>
             </div>
-            {foto && !uploadando && (
-              <button onClick={handleRemoverFoto} style={{
-                alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6,
-                background: 'none', border: 'none', padding: 0,
-                color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope',
-                fontWeight: 600, cursor: 'pointer',
-              }}>
-                <Icon name="trash" size={13} /> Remover foto
-              </button>
-            )}
           </Card>
         </div>
 
