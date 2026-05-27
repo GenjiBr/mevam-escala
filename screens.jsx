@@ -1522,7 +1522,7 @@ function MembrosScreen({ state, dispatch, usuario, equipe, onToast }) {
         )}
       </div>
 
-      {selecionado && <MembroDetail membro={selecionado} state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} isAdmin={usuario.perfil === 'admin'} onToast={onToast} onClose={() => setSelecionado(null)} />}
+      {selecionado && <MembroDetail membro={selecionado} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setSelecionado(null)} />}
     </div>
   );
 }
@@ -1557,14 +1557,10 @@ function MembroCard({ membro, state, onClick, self, isAdmin }) {
   );
 }
 
-function MembroDetail({ membro, state, dispatch, usuario, equipe, isAdmin, onToast, onClose }) {
+function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
   const isOwn = membro.id === usuario.id;
-  const adminPrincipalId = equipe?.criado_por;
-  const podeRemover = isAdmin && !isOwn && membro.id !== adminPrincipalId;
 
   const [editando, setEditando] = useState(false);
-  const [removendo, setRemovendo] = useState(false);
-  const [removendoLoad, setRemovendoLoad] = useState(false);
   const [funcPrincipal, setFuncPrincipal] = useState(membro.func);
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
 
@@ -1583,20 +1579,6 @@ function MembroDetail({ membro, state, dispatch, usuario, equipe, isAdmin, onToa
     dispatch({ type: 'update_membro', id: membro.id, updates: { func: funcPrincipal, secundarias: secundariasLimpas } });
     onToast('Funções atualizadas!', 'ok');
     setEditando(false);
-  };
-
-  const confirmarRemocao = async () => {
-    if (removendoLoad) return;
-    setRemovendoLoad(true);
-    try {
-      await dispatch({ type: 'remove_membro', id: membro.id });
-      onToast(`${membro.nome} removido da equipe.`, 'ok');
-      onClose();
-    } catch (e) {
-      onToast('Erro ao remover: ' + (e.message || 'tente novamente'), 'err');
-    } finally {
-      setRemovendoLoad(false);
-    }
   };
 
   return (
@@ -1704,30 +1686,6 @@ function MembroDetail({ membro, state, dispatch, usuario, equipe, isAdmin, onToa
               )}
             </div>
 
-            {/* remover da equipe — admin only */}
-            {podeRemover && (
-              <div style={{ marginTop: 24, paddingTop: 18, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
-                {removendo ? (
-                  <div style={{ padding: 14, borderRadius: 14, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                    <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, lineHeight: 1.5, marginBottom: 12 }}>
-                      Deseja realmente remover{' '}
-                      <span style={{ color: MEVAM_COLORS.danger }}>{membro.nome}</span>{' '}
-                      da equipe? Essa ação não pode ser desfeita.
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Btn variant="ghost" full onClick={() => setRemovendo(false)}>Cancelar</Btn>
-                      <Btn variant="danger" full icon={<Icon name="trash" size={13}/>} onClick={confirmarRemocao}>
-                        {removendoLoad ? 'Removendo…' : 'Confirmar'}
-                      </Btn>
-                    </div>
-                  </div>
-                ) : (
-                  <Btn variant="danger" full icon={<Icon name="trash" size={14}/>} onClick={() => setRemovendo(true)}>
-                    Remover da equipe
-                  </Btn>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>
@@ -2051,6 +2009,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const [showAddCulto, setShowAddCulto] = React.useState(false);
   const [showAdmins, setShowAdmins] = React.useState(false);
   const [showGerarConfirm, setShowGerarConfirm] = React.useState(false);
+  const [removendoId, setRemovendoId] = React.useState(null);
+  const [removendoLoad, setRemovendoLoad] = React.useState(false);
 
   // verifica se há escala com membros já distribuídos na semana atual
   const temEscalaVigente = React.useMemo(() => {
@@ -2070,6 +2030,20 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
       setShowGerarConfirm(true);
     } else {
       onGerarEscala && onGerarEscala();
+    }
+  };
+
+  const confirmarRemocaoAdmin = async (membro) => {
+    if (removendoLoad) return;
+    setRemovendoLoad(true);
+    try {
+      await dispatch({ type: 'remove_membro', id: membro.id });
+      onToast(`${membro.nome} removido da equipe.`, 'ok');
+      setRemovendoId(null);
+    } catch (e) {
+      onToast('Erro ao remover: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setRemovendoLoad(false);
     }
   };
 
@@ -2234,6 +2208,70 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* membros da equipe — remoção */}
+      {isAdmin && (
+        <div style={{ padding: '18px 18px 0' }}>
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="users" size={12}/> Membros da equipe ({state.membros.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {state.membros.map((m) => {
+              const isPrincipal = m.id === equipe?.criado_por;
+              const isSelf = m.id === usuario.id;
+              const podeRemover = !isPrincipal && !isSelf;
+              const isRemovendoEste = removendoId === m.id;
+              return (
+                <div key={m.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: MEVAM_COLORS.card, border: `1px solid ${isRemovendoEste ? 'rgba(239,68,68,0.35)' : MEVAM_COLORS.border}`, borderRadius: isRemovendoEste ? '14px 14px 0 0' : 14 }}>
+                    <Avatar iniciais={m.iniciais} tom={m.tom} size={36} foto={m.foto} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>
+                        {m.nome}{isSelf ? ' (você)' : ''}
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, marginTop: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <FuncBadge funcId={m.func} />
+                        {m.perfil === 'admin' && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Admin</span>}
+                        {isPrincipal && <span style={{ fontSize: 10, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>· criador</span>}
+                      </div>
+                    </div>
+                    {podeRemover && !isRemovendoEste && (
+                      <button
+                        onClick={() => setRemovendoId(m.id)}
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                        title="Remover da equipe"
+                      >
+                        <Icon name="trash" size={14}/>
+                      </button>
+                    )}
+                    {podeRemover && isRemovendoEste && (
+                      <button
+                        onClick={() => setRemovendoId(null)}
+                        style={{ background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                      >
+                        <Icon name="x" size={14}/>
+                      </button>
+                    )}
+                  </div>
+                  {isRemovendoEste && (
+                    <div style={{ padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
+                      <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.text, lineHeight: 1.5, marginBottom: 10 }}>
+                        Remover <span style={{ color: MEVAM_COLORS.danger, fontWeight: 700 }}>{m.nome}</span> da equipe? Essa ação não pode ser desfeita.
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Btn variant="ghost" full onClick={() => setRemovendoId(null)}>Cancelar</Btn>
+                        <Btn variant="danger" full icon={<Icon name="trash" size={13}/>} onClick={() => confirmarRemocaoAdmin(m)}>
+                          {removendoLoad ? 'Removendo…' : 'Confirmar'}
+                        </Btn>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
