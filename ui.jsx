@@ -24,20 +24,27 @@ const C = window.MEVAM_COLORS = {
 // ──────────────────────────────────────────────────────────
 function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = null }) {
   const [imgErr, setImgErr] = React.useState(false);
-  // Reseta erro se a URL mudar (novo upload)
+  // Reseta erro e gera novo timestamp de cache-bust quando a URL muda
+  const fotoSrc = React.useMemo(() => {
+    if (!foto) return null;
+    // ?t= quebra cache do CDN — calculado uma vez por mudança de URL
+    return foto + (foto.includes('?') ? '&' : '?') + 't=' + Date.now();
+  }, [foto]);
   React.useEffect(() => { setImgErr(false); }, [foto]);
   const shadow = ring ? `0 0 0 2.5px ${tom}, 0 0 0 4.5px ${C.bgDeep}` : `0 2px 8px ${tom}33`;
-  if (foto && !imgErr) {
+  if (fotoSrc && !imgErr) {
     return (
       <div style={{
         width: size, height: size, borderRadius: 999, overflow: 'hidden', flexShrink: 0,
         boxShadow: shadow, border: ring ? `2px solid ${tom}` : 'none',
       }}>
         <img
-          src={foto}
+          src={fotoSrc}
           alt={iniciais}
-          crossOrigin="anonymous"
-          onError={() => setImgErr(true)}
+          onError={(e) => {
+            console.error('[MEVAM] Avatar falhou ao carregar:', fotoSrc, e.type);
+            setImgErr(true);
+          }}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       </div>

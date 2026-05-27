@@ -3084,13 +3084,23 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
         console.warn('[MEVAM][upload] Update retornou 0 linhas — ID não encontrado na tabela membros?', usuario.id);
       }
 
-      // ── PASSO 3: atualiza estado React local ──
-      console.log('[MEVAM][upload] Atualizando estado local.');
-      setFoto(fotoUrl);
-      // sincroniza state global (sem re-salvar no banco — foto já persistida acima)
-      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: fotoUrl } });
+      // ── PASSO 3: verificação — relê o campo foto do banco para confirmar ──
+      const { data: recheck, error: recheckErr } = await SB
+        .from('membros')
+        .select('id, foto')
+        .eq('id', usuario.id)
+        .single();
+      console.log('[MEVAM][upload] Verificação banco (releitura):', { recheck, recheckErr });
+
+      // Usa a URL confirmada pelo banco (ou a local se releitura falhar)
+      const urlFinal = recheck?.foto || fotoUrl;
+      console.log('[MEVAM][upload] URL final a usar:', urlFinal);
+
+      // ── PASSO 4: atualiza estado React local ──
+      setFoto(urlFinal);
+      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: urlFinal } });
       onToast('Foto atualizada com sucesso!', 'ok');
-      console.log('[MEVAM][upload] Concluído.');
+      console.log('[MEVAM][upload] Concluído. ✓');
     } catch (e) {
       console.error('[MEVAM][upload] Erro inesperado:', e.message, e);
       onToast('Erro inesperado ao enviar foto: ' + e.message, 'err');
