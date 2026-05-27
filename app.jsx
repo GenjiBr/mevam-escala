@@ -34,6 +34,15 @@ function reducer(state, action) {
       return { ...state, indispo: next };
     }
 
+    case 'clear_indispo_membro': {
+      const next = { ...state.indispo };
+      for (const iso of Object.keys(next)) {
+        next[iso] = next[iso].filter((x) => x.membroId !== action.usuarioId);
+        if (next[iso].length === 0) delete next[iso];
+      }
+      return { ...state, indispo: next };
+    }
+
     case 'update_membro':
       return { ...state, membros: state.membros.map((m) => m.id === action.id ? { ...m, ...action.updates } : m) };
 
@@ -136,6 +145,9 @@ function App() {
         break;
       case 'remove_indispo':
         await sbRemoveIndispo({ membroId: action.usuarioId, data: action.iso });
+        break;
+      case 'clear_indispo_membro':
+        await sbRemoveAllIndispoMembro(action.usuarioId);
         break;
       case 'update_membro':
         await sbUpdateMembro(action.id, action.updates);

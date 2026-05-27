@@ -1211,9 +1211,6 @@ function DisponibilidadeScreen({ state, dispatch, usuario, onToast }) {
                       <div style={{ fontSize: 13, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>{d.diaSemana}, {d.dia} de {d.mes}</div>
                       <div style={{ fontSize: 11.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', marginTop: 2 }}>{entry?.motivo || 'Sem motivo'}</div>
                     </div>
-                    {entry?.lembrete && (
-                      <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.14)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>🔔 Lembrete</span>
-                    )}
                   </div>
                 );
               })}
@@ -1232,7 +1229,7 @@ function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
   const [membroSel, setMembroSel] = useState(null);
   const [datas, setDatas] = useState(new Set());
   const [motivo, setMotivo] = useState('');
-  const [lembrete, setLembrete] = useState(false);
+  const [limpando, setLimpando] = useState(false);
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
 
   const membrosAtivos = state.membros.filter((m) => m.status === 'ativo');
@@ -1256,11 +1253,27 @@ function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
   const salvar = () => {
     if (!membroSel) { onToast('Selecione um membro', 'warn'); return; }
     if (datas.size === 0) { onToast('Selecione ao menos uma data', 'warn'); return; }
-    dispatch({ type: 'add_indispo', usuarioId: membroSel, datas: [...datas], motivo, lembrete });
+    dispatch({ type: 'add_indispo', usuarioId: membroSel, datas: [...datas], motivo });
     const m = state.membros.find((x) => x.id === membroSel);
     const nome = m?.nome?.split(' ')[0] || 'Membro';
-    onToast(`${datas.size} data(s) registrada(s) para ${nome}${lembrete ? ' · 🔔 lembrete criado' : ''}`, 'ok');
-    setDatas(new Set()); setMotivo(''); setLembrete(false);
+    onToast(`${datas.size} data(s) registrada(s) para ${nome}`, 'ok');
+    setDatas(new Set()); setMotivo('');
+  };
+
+  const handleLimpar = async () => {
+    if (!membroSel) { setDatas(new Set()); setMotivo(''); return; }
+    if (limpando) return;
+    setLimpando(true);
+    try {
+      await dispatch({ type: 'clear_indispo_membro', usuarioId: membroSel });
+      const m = state.membros.find((x) => x.id === membroSel);
+      onToast(`Todas as datas de ${m?.nome?.split(' ')[0] || 'Membro'} foram removidas`, 'ok');
+    } catch (e) {
+      onToast('Erro ao limpar: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setDatas(new Set()); setMotivo('');
+      setLimpando(false);
+    }
   };
 
   const mSel = state.membros.find((x) => x.id === membroSel);
@@ -1317,24 +1330,10 @@ function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
             style={{ ...inputStyle, resize: 'none', fontFamily: 'Manrope' }} />
         </Field>
 
-        {/* toggle lembrete */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14, background: lembrete ? 'rgba(243,156,18,0.1)' : MEVAM_COLORS.card, border: `1px solid ${lembrete ? 'rgba(243,156,18,0.4)' : MEVAM_COLORS.border}`, transition: 'all .2s' }}>
-          <div>
-            <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              🔔 Criar lembrete
-            </div>
-            <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>
-              {mSel ? `Alerta: ${mSel.nome.split(' ')[0]} não poderá servir` : 'Alerta visível para toda a equipe'}
-            </div>
-          </div>
-          <button type="button" onClick={() => setLembrete((v) => !v)}
-            style={{ appearance: 'none', width: 44, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, background: lembrete ? '#F39C12' : 'rgba(255,255,255,0.15)', transition: 'background .15s', position: 'relative' }}>
-            <span style={{ position: 'absolute', top: 3, left: lembrete ? 21 : 3, width: 20, height: 20, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left .15s' }} />
-          </button>
-        </div>
-
         <div style={{ display: 'flex', gap: 10 }}>
-          <Btn variant="ghost" onClick={() => { setDatas(new Set()); setMotivo(''); setLembrete(false); }}>Limpar</Btn>
+          <Btn variant="ghost" onClick={handleLimpar} disabled={limpando}>
+            {limpando ? 'Limpando…' : 'Limpar'}
+          </Btn>
           <Btn variant="accent" full onClick={salvar} icon={<Icon name="check" size={14}/>}>
             Salvar {datas.size > 0 && `(${datas.size})`}
           </Btn>
@@ -1361,9 +1360,6 @@ function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
                       <div style={{ fontSize: 12.5, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>{d.diaSemana}, {d.dia} de {d.mes}</div>
                       <div style={{ fontSize: 11, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', marginTop: 1 }}>{entry?.motivo || 'Sem motivo'}</div>
                     </div>
-                    {entry?.lembrete && (
-                      <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.14)', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>🔔</span>
-                    )}
                     <button onClick={() => dispatch({ type: 'remove_indispo', usuarioId: membroSel, iso })}
                       style={{ background: 'transparent', border: 'none', color: MEVAM_COLORS.mutedSoft, cursor: 'pointer', padding: 6, flexShrink: 0 }}>
                       <Icon name="ban" size={14}/>

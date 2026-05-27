@@ -83,6 +83,12 @@ window.sbRemoveIndispo = async ({ membroId, data }) => {
   if (error) console.error('sbRemoveIndispo:', error.message);
 };
 
+window.sbRemoveAllIndispoMembro = async (membroId) => {
+  const { error } = await SB.from('indisponibilidades')
+    .delete().eq('membro_id', membroId);
+  if (error) console.error('sbRemoveAllIndispoMembro:', error.message);
+};
+
 window.sbDeleteCulto = async (cultoId) => {
   const { error } = await SB.from('cultos').delete().eq('id', cultoId);
   if (error) console.error('sbDeleteCulto:', error.message);
