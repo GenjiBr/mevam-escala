@@ -130,6 +130,19 @@ window.sbExcluirTodaEscala = async () => {
   if (error) { console.error('sbExcluirTodaEscala:', error.message); throw new Error(error.message); }
 };
 
+/* Upload da foto de perfil para Supabase Storage (bucket: avatars) */
+window.sbUploadAvatar = async (userId, base64DataUrl) => {
+  const res = await fetch(base64DataUrl);
+  const blob = await res.blob();
+  const path = `${userId}.jpg`;
+  const { error } = await SB.storage.from('avatars').upload(path, blob, {
+    upsert: true, contentType: 'image/jpeg',
+  });
+  if (error) throw new Error(error.message);
+  const { data: { publicUrl } } = SB.storage.from('avatars').getPublicUrl(path);
+  return publicUrl + '?t=' + Date.now();
+};
+
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */
 window.sbSeedCultos = async () => {
   for (const c of (window.CULTOS_INICIAIS || [])) {

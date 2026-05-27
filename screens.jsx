@@ -2489,8 +2489,159 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
 }
 
 // ════════════════════════════════════════════════════════════
-// PERFIL
+// PERFIL — seletor de foto + crop circular
 // ════════════════════════════════════════════════════════════
+function FotoPickerSheet({ hasFoto, onCamera, onGaleria, onRemover, onClose }) {
+  const btnStyle = {
+    display: 'flex', alignItems: 'center', gap: 16, padding: '15px 18px',
+    borderRadius: 16, width: '100%', background: MEVAM_COLORS.card,
+    border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.text,
+    fontFamily: 'Manrope', fontSize: 15, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'fadeIn .2s' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#0D1526', borderRadius: '24px 24px 0 0', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', padding: '20px 20px calc(44px + env(safe-area-inset-bottom))', animation: 'slideUp .25s ease' }}>
+        <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border, margin: '0 auto 20px' }} />
+        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 19, color: MEVAM_COLORS.text, marginBottom: 16 }}>Foto de perfil</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button onClick={onCamera} style={btnStyle}><span style={{ fontSize: 22, lineHeight: 1 }}>📷</span><span>Tirar foto</span></button>
+          <button onClick={onGaleria} style={btnStyle}><span style={{ fontSize: 22, lineHeight: 1 }}>🖼️</span><span>Escolher da galeria</span></button>
+          {hasFoto && (
+            <button onClick={onRemover} style={{ ...btnStyle, color: MEVAM_COLORS.danger, border: `1px solid ${MEVAM_COLORS.danger}33`, background: MEVAM_COLORS.dangerSoft }}>
+              <Icon name="trash" size={18}/><span>Remover foto</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CropModal({ imageUrl, onConfirm, onClose }) {
+  const canvasRef = useRef(null);
+  const imgRef = useRef(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [dragging, setDragging] = useState(false);
+  const lastPosRef = useRef(null);
+  const lastTouchRef = useRef(null);
+  const CANVAS = 300;
+  const CIRCLE = 240;
+
+  useEffect(() => {
+    const img = new Image();
+    imgRef.current = img;
+    img.onload = () => {
+      const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+      setScale(CIRCLE / minDim * 1.05);
+      setOffset({ x: 0, y: 0 });
+      setImgLoaded(true);
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  useEffect(() => {
+    if (!imgLoaded || !canvasRef.current || !imgRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const img = imgRef.current;
+    ctx.clearRect(0, 0, CANVAS, CANVAS);
+    const iw = img.naturalWidth * scale;
+    const ih = img.naturalHeight * scale;
+    const x = CANVAS / 2 - iw / 2 + offset.x;
+    const y = CANVAS / 2 - ih / 2 + offset.y;
+    ctx.drawImage(img, x, y, iw, ih);
+    // dark overlay with circular hole
+    ctx.save();
+    ctx.fillStyle = 'rgba(2,5,12,0.68)';
+    ctx.beginPath();
+    ctx.rect(0, 0, CANVAS, CANVAS);
+    ctx.arc(CANVAS / 2, CANVAS / 2, CIRCLE / 2, 0, Math.PI * 2, true);
+    ctx.fill('evenodd');
+    ctx.restore();
+    // circle border
+    ctx.save();
+    ctx.strokeStyle = 'rgba(91,127,255,0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(CANVAS / 2, CANVAS / 2, CIRCLE / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }, [imgLoaded, offset, scale]);
+
+  const onMouseDown = (e) => { setDragging(true); lastPosRef.current = { x: e.clientX, y: e.clientY }; };
+  const onMouseMove = (e) => {
+    if (!dragging || !lastPosRef.current) return;
+    setOffset((o) => ({ x: o.x + e.clientX - lastPosRef.current.x, y: o.y + e.clientY - lastPosRef.current.y }));
+    lastPosRef.current = { x: e.clientX, y: e.clientY };
+  };
+  const onMouseUp = () => { setDragging(false); lastPosRef.current = null; };
+
+  const onTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dist: null };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchRef.current = { ...(lastTouchRef.current || {}), dist: Math.hypot(dx, dy) };
+    }
+  };
+  const onTouchMove = (e) => {
+    if (!lastTouchRef.current) return;
+    if (e.touches.length === 1) {
+      const dx = e.touches[0].clientX - lastTouchRef.current.x;
+      const dy = e.touches[0].clientY - lastTouchRef.current.y;
+      setOffset((o) => ({ x: o.x + dx, y: o.y + dy }));
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dist: lastTouchRef.current.dist };
+    } else if (e.touches.length === 2 && lastTouchRef.current.dist !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      setScale((s) => Math.min(12, Math.max(0.3, s * (dist / lastTouchRef.current.dist))));
+      lastTouchRef.current = { ...lastTouchRef.current, dist };
+    }
+  };
+  const onTouchEnd = () => { lastTouchRef.current = null; };
+  const onWheel = (e) => { e.preventDefault(); setScale((s) => Math.min(12, Math.max(0.3, s * (1 - e.deltaY * 0.001)))); };
+
+  const confirmar = () => {
+    if (!imgLoaded || !imgRef.current) return;
+    const R = CIRCLE / 2;
+    const out = document.createElement('canvas');
+    out.width = CIRCLE; out.height = CIRCLE;
+    const ctx = out.getContext('2d');
+    ctx.beginPath(); ctx.arc(R, R, R, 0, Math.PI * 2); ctx.clip();
+    const img = imgRef.current;
+    const iw = img.naturalWidth * scale;
+    const ih = img.naturalHeight * scale;
+    const x = CANVAS / 2 - iw / 2 + offset.x - (CANVAS / 2 - R);
+    const y = CANVAS / 2 - ih / 2 + offset.y - (CANVAS / 2 - R);
+    ctx.drawImage(img, x, y, iw, ih);
+    onConfirm(out.toDataURL('image/jpeg', 0.88));
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,5,12,0.94)', zIndex: 250, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn .2s' }}>
+      <div style={{ width: '100%', maxWidth: 480, padding: '0 20px' }}>
+        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 20, color: MEVAM_COLORS.text, textAlign: 'center', marginBottom: 6 }}>Ajustar foto</div>
+        <div style={{ color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 12.5, textAlign: 'center', marginBottom: 18 }}>Arraste para reposicionar · Belisque ou role para ampliar</div>
+      </div>
+      <canvas
+        ref={canvasRef} width={CANVAS} height={CANVAS}
+        style={{ cursor: dragging ? 'grabbing' : 'grab', borderRadius: 16, touchAction: 'none', display: 'block', width: `min(calc(100vw - 40px), ${CANVAS}px)`, height: `min(calc(100vw - 40px), ${CANVAS}px)` }}
+        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        onWheel={onWheel}
+      />
+      <div style={{ display: 'flex', gap: 12, marginTop: 22, width: '100%', maxWidth: 480, padding: '0 20px calc(40px + env(safe-area-inset-bottom))' }}>
+        <Btn variant="ghost" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="accent" full icon={<Icon name="check" size={14}/>} onClick={confirmar}>Confirmar</Btn>
+      </div>
+    </div>
+  );
+}
+
 function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsuario }) {
   const membro = state.membros.find((m) => m.id === usuario.id) || {};
   const [nome, setNome] = useState(membro.nome || usuario.nome || '');
@@ -2499,7 +2650,11 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [tomSel, setTomSel] = useState(membro.tom || '#5B7FFF');
   const [foto, setFoto] = useState(membro.foto || null);
   const [salvando, setSalvando] = useState(false);
-  const fileRef = useRef(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [cropImage, setCropImage] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const cameraRef = useRef(null);
+  const galeriaRef = useRef(null);
 
   // sincroniza quando state.membros carrega depois do render inicial
   useEffect(() => {
@@ -2510,42 +2665,38 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     if (membro.foto !== undefined) { setFoto(membro.foto); }
   }, [membro.id]);
 
-  // comprime a imagem para ~200x200 JPEG antes de salvar no localStorage
-  const comprimirFoto = (file) => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX = 240;
-          let { width, height } = img;
-          if (width > height) { if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; } }
-          else { if (height > MAX) { width = Math.round(width * MAX / height); height = MAX; } }
-          const canvas = document.createElement('canvas');
-          canvas.width = width; canvas.height = height;
-          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.75));
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleFotoChange = async (e) => {
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { onToast('Imagem muito grande (máx 5 MB)', 'warn'); return; }
-    const base64 = await comprimirFoto(file);
-    setFoto(base64);
-    dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: base64 } });
-    onToast('Foto atualizada!', 'ok');
+    if (file.size > 15 * 1024 * 1024) { onToast('Imagem muito grande (máx 15 MB)', 'warn'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => { setCropImage(ev.target.result); setShowPicker(false); };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
-  const removerFoto = () => {
+  const handleCropConfirm = async (base64) => {
+    setCropImage(null);
+    setUploading(true);
+    try {
+      let fotoUrl = base64;
+      try { fotoUrl = await sbUploadAvatar(usuario.id, base64); }
+      catch (storageErr) { console.warn('Storage indisponível, salvando base64:', storageErr.message); }
+      setFoto(fotoUrl);
+      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: fotoUrl } });
+      onToast('Foto atualizada com sucesso!', 'ok');
+    } catch (e) {
+      onToast('Erro ao enviar foto. Tente novamente.', 'err');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoverFoto = () => {
     setFoto(null);
     dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: null } });
     onToast('Foto removida', 'ok');
+    setShowPicker(false);
   };
 
   const cores = ['#5B7FFF','#F39C12','#E67E22','#8E44AD','#E74C3C','#27AE60','#2980B9','#1ABC9C','#EC4899','#3B6FB5','#EF4444','#6366F1'];
@@ -2583,36 +2734,33 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       {/* hero do perfil */}
       <div style={{ padding: '32px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, background: `radial-gradient(80% 50% at 50% 0%, ${tomSel}22 0%, transparent 70%)`, position: 'relative' }}>
 
-        {/* input de foto oculto */}
-        <input ref={fileRef} type="file" accept="image/*" capture="user"
-          style={{ display: 'none' }} onChange={handleFotoChange} />
+        {/* inputs de foto ocultos */}
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment"
+          style={{ display: 'none' }} onChange={handleFileSelect} />
+        <input ref={galeriaRef} type="file" accept="image/*"
+          style={{ display: 'none' }} onChange={handleFileSelect} />
 
         <div style={{ position: 'relative' }}>
           {/* avatar clicável */}
-          <button onClick={() => fileRef.current?.click()}
+          <button onClick={() => setShowPicker(true)}
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: 999, display: 'block' }}>
             <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={90} ring foto={foto} />
-            {/* overlay câmera */}
-            <div style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'rgba(0,0,0,0.38)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = 0}>
-              <Icon name="camera" size={22} />
+            {/* overlay câmera / spinner de upload */}
+            <div style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'rgba(0,0,0,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: uploading ? 1 : 0, transition: 'opacity .2s' }}
+              onMouseEnter={(e) => { if (!uploading) e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { if (!uploading) e.currentTarget.style.opacity = '0'; }}>
+              {uploading
+                ? <div style={{ width: 24, height: 24, borderRadius: 999, border: '2.5px solid rgba(255,255,255,0.85)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                : <Icon name="camera" size={22} />}
             </div>
           </button>
 
           {/* badge câmera fixo no canto */}
-          <button onClick={() => fileRef.current?.click()}
+          <button onClick={(e) => { e.stopPropagation(); setShowPicker(true); }}
             style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 999, background: tomSel, border: '2.5px solid #04081A', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <Icon name="camera" size={13} />
           </button>
         </div>
-
-        {/* remover foto */}
-        {foto && (
-          <button onClick={removerFoto} style={{ background: 'none', border: 'none', color: MEVAM_COLORS.danger, fontFamily: 'Manrope', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, marginTop: -6 }}>
-            <Icon name="ban" size={11} /> Remover foto
-          </button>
-        )}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 24, color: MEVAM_COLORS.text, letterSpacing: -0.5 }}>{nome || 'Seu nome'}</div>
           <div style={{ marginTop: 6, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -2706,6 +2854,23 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
         </div>
 
       </div>
+
+      {showPicker && (
+        <FotoPickerSheet
+          hasFoto={!!foto}
+          onCamera={() => { setShowPicker(false); setTimeout(() => cameraRef.current?.click(), 80); }}
+          onGaleria={() => { setShowPicker(false); setTimeout(() => galeriaRef.current?.click(), 80); }}
+          onRemover={handleRemoverFoto}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+      {cropImage && (
+        <CropModal
+          imageUrl={cropImage}
+          onConfirm={handleCropConfirm}
+          onClose={() => setCropImage(null)}
+        />
+      )}
     </div>
   );
 }
