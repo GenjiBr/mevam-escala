@@ -205,13 +205,13 @@ function App() {
     console.log('[MEVAM] ══ Gerando escala ══ semanas:', semanas, '| membros ativos:', membrosAtivos.length);
     console.log('[MEVAM] Perfis:', membrosAtivos.map((m) => `${m.nome} [func:${m.func}] [sec:${(m.secundarias||[]).join(',')}]`));
 
-    // 1. Identificar e deletar cultos inválidos (quartas + domingos/quintas mal nomeados)
+    // 1. Apagar TODOS os cultos futuros de qui/dom → clean slate para o período escolhido
+    //    (preserva passado intacto e sex/sáb que são sempre manuais)
     const parasApagar = state.cultos.filter((c) => {
+      if (c.data < hojeISO) return false;       // passado: intocável
       const dow = new Date(c.data + 'T00:00:00').getDay();
-      if (dow === 3) return true;
-      if (dow === 0 && c.titulo !== 'Culto da Família' && c.titulo !== 'Ceia') return true;
-      if (dow === 4 && c.titulo !== 'Culto Profético') return true;
-      return false;
+      if (dow === 5 || dow === 6) return false;  // sex/sáb: sempre manual
+      return true;                               // qui + dom futuros: apagar tudo
     });
     for (const c of parasApagar) await sbDeleteCulto(c.id);
 
@@ -307,9 +307,13 @@ function App() {
 
     _dispatch({ type: 'set_cultos', cultos: novosCultos });
     for (const c of novosCultos) await sbUpsertCulto(c);
-    const removidos = parasApagar.length;
+    const gerados = novosCultos.filter((c) => {
+      if (c.data < hojeISO) return false;
+      const dow = new Date(c.data + 'T00:00:00').getDay();
+      return dow !== 5 && dow !== 6;
+    }).length;
     const label = semanas <= 4 ? '1 mês' : semanas <= 13 ? '3 meses' : semanas <= 26 ? '6 meses' : '1 ano';
-    showToast(`Escala gerada (${label})!${removidos > 0 ? ` ${removidos} culto(s) removido(s).` : ''}`, 'ok');
+    showToast(`Escala gerada (${label}) — ${gerados} cultos!`, 'ok');
   }, [state.cultos, state.membros, state.indispo]);
 
   /* ── Adicionar culto manual (sex/sáb) ── */

@@ -2432,7 +2432,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const [showGerarConfirm, setShowGerarConfirm] = React.useState(false);
   const [removendoId, setRemovendoId] = React.useState(null);
   const [removendoLoad, setRemovendoLoad] = React.useState(false);
-  const [periodoKey, setPeriodoKey] = React.useState('8'); // semanas padrão
+  const [periodoKey, setPeriodoKey] = React.useState('4'); // semanas padrão (1 mês)
 
   const PERIODOS = [
     { key: '4',  label: '1 mês'   },
@@ -2517,7 +2517,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
       {/* stats grid */}
       <div style={{ padding: '14px 18px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Stat label="Membros ativos" value={ativos} accent={MEVAM_COLORS.accent} sub={`${state.membros.length} total`} />
-        <Stat label="Cultos agendados" value={state.cultos.length} accent="#7C5CFF" sub="próximas 2 semanas" />
+        <Stat label="Cultos agendados" value={state.cultos.filter((c) => c.data >= new Date().toISOString().slice(0,10)).length} accent="#7C5CFF" sub="a partir de hoje" />
         <Stat label="Conflitos" value={conflitos} accent={conflitos > 0 ? MEVAM_COLORS.danger : MEVAM_COLORS.ok} sub={conflitos > 0 ? 'requer revisão' : 'tudo limpo'} />
         <Stat label="Slots vazios" value={vazios} accent={vazios > 0 ? '#F39C12' : MEVAM_COLORS.ok} sub={vazios > 0 ? 'precisam cobertura' : 'completo'} />
       </div>
@@ -3023,7 +3023,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
   const [tomSel, setTomSel] = useState(membro.tom || '#5B7FFF');
   const [foto, setFoto] = useState(membro.foto || null);
-  const [salvando, setSalvando] = useState(false);
+  const [saveState, setSaveState] = useState('idle'); // 'idle' | 'saving' | 'saved'
   const [showPicker, setShowPicker] = useState(false);
   const [cropImage, setCropImage] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -3053,14 +3053,24 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     setCropImage(null);
     setUploading(true);
     try {
-      let fotoUrl = base64;
-      try { fotoUrl = await sbUploadAvatar(usuario.id, base64); }
-      catch (storageErr) { console.warn('Storage indisponível, salvando base64:', storageErr.message); }
+      // 1. Envia para o Supabase Storage (bucket: avatars)
+      let fotoUrl;
+      try {
+        fotoUrl = await sbUploadAvatar(usuario.id, base64);
+      } catch (storageErr) {
+        console.error('[MEVAM] Falha no upload para Storage:', storageErr.message);
+        console.warn('[MEVAM] Verifique no painel do Supabase → Storage → se o bucket "avatars" existe e está público (public read).');
+        onToast('Erro ao enviar foto. Verifique o bucket "avatars" no Supabase.', 'err');
+        return; // aborta — não salva base64 gigante no banco
+      }
+      // 2. Atualiza estado local imediatamente
       setFoto(fotoUrl);
-      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: fotoUrl } });
+      // 3. Persiste no banco (await garante que erros sejam capturados)
+      await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: fotoUrl } });
       onToast('Foto atualizada com sucesso!', 'ok');
     } catch (e) {
-      onToast('Erro ao enviar foto. Tente novamente.', 'err');
+      console.error('[MEVAM] Erro ao salvar foto no banco:', e.message);
+      onToast('Foto enviada mas erro ao salvar. Tente novamente.', 'err');
     } finally {
       setUploading(false);
     }
@@ -3086,17 +3096,19 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const salvar = async () => {
     if (!nome.trim()) { onToast('Informe o nome', 'warn'); return; }
     if (!funcPrincipal) { onToast('Selecione uma função principal', 'warn'); return; }
+    if (saveState === 'saving') return; // evita duplo clique
     const ini = iniciais(nome);
     const secundariasLimpas = funcsSecundarias.filter((f) => f !== funcPrincipal);
-    setSalvando(true);
+    setSaveState('saving');
     try {
       await dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel, foto } });
       onUpdateUsuario({ nome: nome.trim() });
       onToast('Perfil atualizado com sucesso!', 'ok');
+      setSaveState('saved');
+      setTimeout(() => setSaveState('idle'), 2000); // volta ao normal após 2s
     } catch (e) {
       onToast('Erro ao salvar: ' + (e.message || 'tente novamente'), 'err');
-    } finally {
-      setTimeout(() => setSalvando(false), 1000);
+      setSaveState('idle'); // reseta imediatamente em caso de erro
     }
   };
 
@@ -3211,9 +3223,12 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
         </div>
 
         {/* ── Botão salvar ── */}
-        <Btn variant="accent" full icon={salvando ? null : <Icon name="check" size={15}/>} onClick={salvar}
+        <Btn variant="accent" full
+          icon={saveState === 'idle' ? <Icon name="check" size={15}/> : null}
+          onClick={salvar}
+          disabled={saveState === 'saving'}
           style={{ padding: '14px 18px', fontSize: 15, borderRadius: 16 }}>
-          {salvando ? '✓ Salvo!' : 'Salvar alterações'}
+          {saveState === 'saving' ? 'Salvando...' : saveState === 'saved' ? '✓ Salvo!' : 'Salvar alterações'}
         </Btn>
 
         {/* ── Sair ── */}

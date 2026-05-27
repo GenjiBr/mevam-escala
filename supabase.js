@@ -130,15 +130,26 @@ window.sbExcluirTodaEscala = async () => {
   if (error) { console.error('sbExcluirTodaEscala:', error.message); throw new Error(error.message); }
 };
 
-/* Upload da foto de perfil para Supabase Storage (bucket: avatars) */
+/* Upload da foto de perfil para Supabase Storage (bucket: avatars)
+   PRÉ-REQUISITO: criar o bucket "avatars" como público no painel Supabase
+   → Storage → New bucket → Name: avatars → Public: ON              */
 window.sbUploadAvatar = async (userId, base64DataUrl) => {
   const res = await fetch(base64DataUrl);
   const blob = await res.blob();
-  const path = `${userId}.jpg`;
+  const ext = blob.type === 'image/png' ? 'png' : 'jpg';
+  const path = `${userId}.${ext}`;
   const { error } = await SB.storage.from('avatars').upload(path, blob, {
-    upsert: true, contentType: 'image/jpeg',
+    upsert: true, contentType: blob.type || 'image/jpeg',
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Diagnóstico detalhado para facilitar depuração
+    if (error.message.includes('Bucket not found') || error.message.includes('bucket')) {
+      console.error('[MEVAM] Bucket "avatars" não encontrado.');
+      console.error('[MEVAM] Crie o bucket manualmente:');
+      console.error('[MEVAM] Supabase Dashboard → Storage → New bucket → Name: avatars → Public bucket: ON');
+    }
+    throw new Error(error.message);
+  }
   const { data: { publicUrl } } = SB.storage.from('avatars').getPublicUrl(path);
   return publicUrl + '?t=' + Date.now();
 };
