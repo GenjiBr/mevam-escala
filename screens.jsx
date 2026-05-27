@@ -980,10 +980,11 @@ function CultoHeroCard({ culto, usuarioId, state }) {
 }
 
 // ────────────────────────────────────────────────────────────
-// Modal para escolher membro de um slot
+// Popover de seleção de membro (abre próximo ao slot clicado)
 // ────────────────────────────────────────────────────────────
-function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
+function SlotPickerModal({ funcId, culto, state, onSelect, onClose, anchorRect }) {
   const f = (window.FUNCOES || {})[funcId] || {};
+  const funcColor = f.color || MEVAM_COLORS.accent;
   const indispoIds = (state.indispo[culto.data] || []).map((i) => i.membroId);
   const membroAtual = culto.escalados[funcId] || null;
 
@@ -993,39 +994,70 @@ function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
     !indispoIds.includes(m.id)
   );
 
+  // ── posicionamento do popover ──────────────────────────────
+  const vw = typeof window !== 'undefined' ? window.innerWidth  : 480;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const GAP    = 7;   // espaço entre slot e popover
+  const MARGIN = 10;  // margem mínima das bordas da tela
+
+  let popStyle = {};
+  if (anchorRect) {
+    const popW      = Math.min(Math.max(anchorRect.width, 240), vw - MARGIN * 2);
+    const spaceBelow = vh - anchorRect.bottom - GAP - MARGIN;
+    const spaceAbove = anchorRect.top - GAP - MARGIN;
+    const openBelow  = spaceBelow >= 120 || spaceBelow >= spaceAbove;
+
+    let left = anchorRect.left;
+    if (left + popW > vw - MARGIN) left = vw - popW - MARGIN;
+    if (left < MARGIN) left = MARGIN;
+
+    popStyle = openBelow
+      ? { top: anchorRect.bottom + GAP, left, width: popW, maxHeight: Math.max(spaceBelow, 160) }
+      : { bottom: vh - anchorRect.top + GAP, left, width: popW, maxHeight: Math.max(spaceAbove, 160) };
+  } else {
+    // fallback centrado (sem anchorRect)
+    popStyle = { top: '35%', left: '50%', transform: 'translate(-50%,-50%)', width: Math.min(320, vw - 32), maxHeight: '60dvh' };
+  }
+  // ──────────────────────────────────────────────────────────
+
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(2,5,12,0.88)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 300 }}
       onClick={onClose}
     >
       <div
         style={{
-          width: '100%', maxWidth: 480,
-          background: '#0D1526', borderRadius: '24px 24px 0 0',
-          border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
-          padding: '0 0 calc(110px + env(safe-area-inset-bottom))',
-          animation: 'slideUp .25s ease',
-          maxHeight: '78dvh', overflowY: 'auto',
+          position: 'fixed',
+          background: '#0D1526',
+          borderRadius: 18,
+          border: `1px solid ${funcColor}55`,
+          boxShadow: `0 16px 56px rgba(0,0,0,0.80), 0 0 0 1px rgba(255,255,255,0.05), 0 0 32px ${funcColor}18`,
+          overflowY: 'auto',
+          zIndex: 301,
+          animation: 'slideUp .2s cubic-bezier(.2,.9,.3,1.1)',
+          ...popStyle,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 6px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 999, background: MEVAM_COLORS.border }} />
-        </div>
+        <div style={{ padding: '12px 14px 14px' }}>
 
-        <div style={{ padding: '0 18px 16px' }}>
           {/* cabeçalho */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
             <FuncBadge funcId={funcId} />
-            <span style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 19, color: MEVAM_COLORS.text }}>
+            <span style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 16, color: MEVAM_COLORS.text, flex: 1, letterSpacing: -0.2 }}>
               Escalar — {f.label || funcId}
             </span>
+            <button
+              onClick={onClose}
+              style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 8, width: 26, height: 26, cursor: 'pointer', color: MEVAM_COLORS.mutedSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            >
+              <Icon name="x" size={12} />
+            </button>
           </div>
-          <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginBottom: 16 }}>
+          <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginBottom: 12 }}>
             {candidatos.length === 0
               ? 'Nenhum membro disponível para essa função nessa data.'
-              : `${candidatos.length} membro${candidatos.length > 1 ? 's' : ''} disponível${candidatos.length > 1 ? 'is' : ''}`}
+              : `${candidatos.length} membro${candidatos.length !== 1 ? 's' : ''} disponível${candidatos.length !== 1 ? 'is' : ''}`}
           </div>
 
           {/* botão remover (só se slot preenchido) */}
@@ -1033,22 +1065,22 @@ function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
             <button
               onClick={() => { onSelect(null); onClose(); }}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                padding: '10px 14px', borderRadius: 12, marginBottom: 10,
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 10px', borderRadius: 10, marginBottom: 8,
                 background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.22)',
                 cursor: 'pointer', color: MEVAM_COLORS.danger,
-                fontFamily: 'Manrope', fontSize: 13, fontWeight: 600,
+                fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600,
               }}
             >
-              <div style={{ width: 32, height: 32, borderRadius: 999, background: 'rgba(239,68,68,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name="x" size={14} />
+              <div style={{ width: 28, height: 28, borderRadius: 999, background: 'rgba(239,68,68,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="x" size={12} />
               </div>
               Remover do slot
             </button>
           )}
 
           {/* lista de candidatos */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {candidatos.map((m) => {
               const isAtual = m.id === membroAtual;
               return (
@@ -1056,23 +1088,23 @@ function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
                   key={m.id}
                   onClick={() => { onSelect(m.id); onClose(); }}
                   style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 14px', borderRadius: 14,
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 10px', borderRadius: 12,
                     background: isAtual ? MEVAM_COLORS.accentSoft : MEVAM_COLORS.card,
                     border: `1px solid ${isAtual ? MEVAM_COLORS.accent : MEVAM_COLORS.border}`,
                     cursor: 'pointer', textAlign: 'left',
                     transition: 'background .15s',
                   }}
                 >
-                  <Avatar iniciais={m.iniciais} tom={m.tom} size={36} foto={m.foto} ring={isAtual} />
+                  <Avatar iniciais={m.iniciais} tom={m.tom} size={30} foto={m.foto} ring={isAtual} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                       {m.nome}
-                      {isAtual && <span style={{ fontSize: 10, color: MEVAM_COLORS.accent, marginLeft: 6, fontWeight: 700 }}>• atual</span>}
+                      {isAtual && <span style={{ fontSize: 9, color: MEVAM_COLORS.accent, fontWeight: 700 }}>• atual</span>}
                     </div>
-                    <div style={{ marginTop: 3 }}><FuncBadge funcId={m.func} /></div>
+                    <div style={{ marginTop: 2 }}><FuncBadge funcId={m.func} /></div>
                   </div>
-                  {isAtual && <Icon name="check" size={16} />}
+                  {isAtual && <Icon name="check" size={14} />}
                 </button>
               );
             })}
@@ -1177,7 +1209,11 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
             return (
               <div
                 key={i}
-                onClick={clicavel ? () => setSlotPicker({ funcId: x.funcId }) : undefined}
+                onClick={clicavel ? (e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  setSlotPicker({ funcId: x.funcId, anchorRect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } });
+                } : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '8px 10px', borderRadius: 12,
@@ -1246,7 +1282,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
         </div>
       )}
 
-      {/* modal de seleção */}
+      {/* popover de seleção */}
       {slotPicker && (
         <SlotPickerModal
           funcId={slotPicker.funcId}
@@ -1254,6 +1290,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
           state={state}
           onSelect={(membroId) => handleSave(slotPicker.funcId, membroId)}
           onClose={() => setSlotPicker(null)}
+          anchorRect={slotPicker.anchorRect}
         />
       )}
     </Card>
