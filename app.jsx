@@ -183,19 +183,25 @@ function App() {
     }
   }, []);
 
-  /* ── Gerar escala: limpa quartas + cultos mal nomeados, gera qui/dom 8 sem ── */
-  const handleGerarEscala = useCallbackApp(async () => {
+  /* ── Gerar escala automática ──────────────────────────────────────────────
+     semanas: número de semanas a cobrir (4=1mês, 13=3m, 26=6m, 52=1ano)
+     Algoritmo:
+       • Só aloca membro em um slot se ele tem aquela func (principal ou secundária)
+       • Nunca escalona o mesmo membro duas vezes no mesmo culto
+       • Distribui a carga: a cada slot escolhe o candidato com MENOS cultos
+       • Processa cultos em ordem cronológica para manter alternância coerente
+  ─────────────────────────────────────────────────────────────────────────── */
+  const handleGerarEscala = useCallbackApp(async (semanas = 8) => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const fmtISO = (d) => d.toISOString().slice(0, 10);
     const funcKeys = Object.keys(window.FUNCOES || {});
     const escaladosVazios = () => Object.fromEntries(funcKeys.map((k) => [k, null]));
-    // 2º domingo: dia entre 8 e 14
     const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };
 
     // 1. Identificar e deletar cultos inválidos (quartas + domingos/quintas mal nomeados)
     const parasApagar = state.cultos.filter((c) => {
       const dow = new Date(c.data + 'T00:00:00').getDay();
-      if (dow === 3) return true; // quarta — sempre remove
+      if (dow === 3) return true;
       if (dow === 0 && c.titulo !== 'Culto da Família' && c.titulo !== 'Ceia') return true;
       if (dow === 4 && c.titulo !== 'Culto Profético') return true;
       return false;
@@ -213,16 +219,14 @@ function App() {
       return c.titulo !== correto ? { ...c, titulo: correto } : c;
     });
 
-    // 4. Gerar qui + dom para as próximas 8 semanas
-    for (let w = 0; w < 8; w++) {
-      // Quinta — Culto Profético
+    // 4. Gerar qui + dom para o período selecionado
+    for (let w = 0; w < semanas; w++) {
       const thu = new Date(hoje);
       thu.setDate(hoje.getDate() + (((4 - hoje.getDay()) + 7) % 7 || 7) + w * 7);
       const thuISO = fmtISO(thu);
       if (!existentes.find((c) => c.data === thuISO)) {
         existentes.push({ id: `qui_${thuISO}`, data: thuISO, horario: '20:00', titulo: 'Culto Profético', cor: '#7C5CFF', escalados: escaladosVazios() });
       }
-      // Domingo — Culto da Família ou Ceia
       const sun = new Date(hoje);
       sun.setDate(hoje.getDate() + (((0 - hoje.getDay()) + 7) % 7 || 7) + w * 7);
       const sunISO = fmtISO(sun);
@@ -232,31 +236,74 @@ function App() {
       }
     }
 
-    // 5. Auto-distribuir membros (pula sex/sáb — 100% manual)
-    const novosCultos = existentes.map((c) => {
-      const dow = new Date(c.data + 'T00:00:00').getDay();
-      if (dow === 5 || dow === 6) return c;
-      const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
-      const esc = { ...c.escalados };
-      for (const [fid, val] of Object.entries(esc)) {
-        if (Array.isArray(val)) continue;
-        if (!val) {
-          const cand = state.membros.find((m) =>
-            m.status === 'ativo' && (m.func === fid || m.secundarias.includes(fid)) && !indispoIds.includes(m.id));
-          if (cand) esc[fid] = cand.id;
-        } else if (indispoIds.includes(val)) {
-          const sub = state.membros.find((m) =>
-            m.status === 'ativo' && (m.func === fid || m.secundarias.includes(fid)) && !indispoIds.includes(m.id) && m.id !== val);
-          if (sub) esc[fid] = sub.id;
-        }
+    // 5. Distribuição equilibrada — processa em ordem cronológica
+    //    Contador global de alocações por membro (carga acumulada)
+    const contagem = {};
+    for (const m of state.membros) contagem[m.id] = 0;
+    for (const c of existentes) {
+      for (const val of Object.values(c.escalados)) {
+        const ids = Array.isArray(val) ? val : (val ? [val] : []);
+        for (const id of ids) contagem[id] = (contagem[id] || 0) + 1;
       }
-      return { ...c, escalados: esc };
-    });
+    }
+
+    const novosCultos = [...existentes]
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .map((c) => {
+        const dow = new Date(c.data + 'T00:00:00').getDay();
+        if (dow === 5 || dow === 6) return c; // sex/sáb: 100% manual
+
+        const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
+        const esc = { ...c.escalados };
+
+        // Quem já está alocado neste culto (evita dupla escala no mesmo culto)
+        const jaEscaladosNesteCulto = new Set();
+        for (const val of Object.values(esc)) {
+          const ids = Array.isArray(val) ? val : (val ? [val] : []);
+          for (const id of ids) {
+            if (!indispoIds.includes(id)) jaEscaladosNesteCulto.add(id);
+          }
+        }
+
+        for (const [fid, val] of Object.entries(esc)) {
+          if (Array.isArray(val)) continue; // slots multi-membro são 100% manuais
+
+          // Libera slot se membro atual está indisponível nesta data
+          if (val && indispoIds.includes(val)) {
+            jaEscaladosNesteCulto.delete(val);
+            esc[fid] = null;
+          }
+
+          if (esc[fid]) continue; // slot já preenchido e válido
+
+          // Candidatos: função correta + ativo + disponível + não está neste culto
+          const candidatos = state.membros.filter((m) =>
+            m.status === 'ativo' &&
+            (m.func === fid || (m.secundarias || []).includes(fid)) &&
+            !indispoIds.includes(m.id) &&
+            !jaEscaladosNesteCulto.has(m.id)
+          );
+
+          if (candidatos.length === 0) continue; // sem candidatos → slot fica vazio
+
+          // Escolhe quem tem MENOS cultos atribuídos (load balancing)
+          // Em caso de empate, a ordem original (alfabética) desempata — garante alternância
+          candidatos.sort((a, b) => (contagem[a.id] || 0) - (contagem[b.id] || 0));
+          const escolhido = candidatos[0];
+
+          esc[fid] = escolhido.id;
+          jaEscaladosNesteCulto.add(escolhido.id);
+          contagem[escolhido.id] = (contagem[escolhido.id] || 0) + 1;
+        }
+
+        return { ...c, escalados: esc };
+      });
 
     _dispatch({ type: 'set_cultos', cultos: novosCultos });
     for (const c of novosCultos) await sbUpsertCulto(c);
     const removidos = parasApagar.length;
-    showToast(`Escala gerada!${removidos > 0 ? ` ${removidos} culto(s) antigo(s) removido(s).` : ''}`, 'ok');
+    const label = semanas <= 4 ? '1 mês' : semanas <= 13 ? '3 meses' : semanas <= 26 ? '6 meses' : '1 ano';
+    showToast(`Escala gerada (${label})!${removidos > 0 ? ` ${removidos} culto(s) removido(s).` : ''}`, 'ok');
   }, [state.cultos, state.membros, state.indispo]);
 
   /* ── Adicionar culto manual (sex/sáb) ── */

@@ -2432,8 +2432,17 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const [showGerarConfirm, setShowGerarConfirm] = React.useState(false);
   const [removendoId, setRemovendoId] = React.useState(null);
   const [removendoLoad, setRemovendoLoad] = React.useState(false);
+  const [periodoKey, setPeriodoKey] = React.useState('8'); // semanas padrão
 
-  // verifica se há escala com membros já distribuídos na semana atual
+  const PERIODOS = [
+    { key: '4',  label: '1 mês'   },
+    { key: '13', label: '3 meses' },
+    { key: '26', label: '6 meses' },
+    { key: '52', label: '1 ano'   },
+  ];
+  const semanas = parseInt(periodoKey, 10);
+
+  // verifica se há escala com membros já distribuídos
   const temEscalaVigente = React.useMemo(() => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const fmtL = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2450,7 +2459,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
     if (temEscalaVigente) {
       setShowGerarConfirm(true);
     } else {
-      onGerarEscala && onGerarEscala();
+      onGerarEscala && onGerarEscala(semanas);
     }
   };
 
@@ -2538,10 +2547,32 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
                   Gerar escala automática
                 </div>
                 <div style={{ color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 12.5, marginTop: 4, lineHeight: 1.45 }}>
-                  Distribui equilibrada respeitando indisponibilidades e funções obrigatórias.
+                  Respeita funções, indisponibilidades e distribui a carga entre os membros.
                 </div>
               </div>
             </div>
+
+            {/* ── Seletor de período ── */}
+            {!showGerarConfirm && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 8 }}>
+                  Período
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {PERIODOS.map((p) => (
+                    <button key={p.key} onClick={() => setPeriodoKey(p.key)} style={{
+                      flex: 1, padding: '8px 4px', borderRadius: 10,
+                      fontFamily: 'Manrope', fontSize: 12, fontWeight: 600,
+                      background: periodoKey === p.key ? MEVAM_COLORS.accentSoft : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${periodoKey === p.key ? MEVAM_COLORS.accent + '99' : MEVAM_COLORS.border}`,
+                      color: periodoKey === p.key ? '#A8BBFF' : MEVAM_COLORS.muted,
+                      cursor: 'pointer', transition: 'all .15s',
+                    }}>{p.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {showGerarConfirm ? (
               <div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}>
                 <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.text, fontWeight: 600, lineHeight: 1.5, marginBottom: 12 }}>
@@ -2550,13 +2581,13 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Btn variant="ghost" full onClick={() => setShowGerarConfirm(false)}>Cancelar</Btn>
-                  <Btn variant="danger" full icon={<Icon name="sparkles" size={13}/>} onClick={() => { setShowGerarConfirm(false); onGerarEscala && onGerarEscala(); }}>
+                  <Btn variant="danger" full icon={<Icon name="sparkles" size={13}/>} onClick={() => { setShowGerarConfirm(false); onGerarEscala && onGerarEscala(semanas); }}>
                     Sim, substituir
                   </Btn>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 <Btn variant="accent" full icon={<Icon name="sparkles" size={14}/>} onClick={handleGerarClick}>Gerar agora</Btn>
                 <Btn variant="ghost" icon={<Icon name="shield" size={14}/>} style={{ borderColor: `${MEVAM_COLORS.accent}55`, color: '#A8BBFF', flexShrink: 0 }} onClick={() => setShowAdmins(true)}>Admin +</Btn>
               </div>
