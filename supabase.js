@@ -131,12 +131,13 @@ window.sbExcluirTodaEscala = async () => {
 };
 
 /* Upload da foto de perfil para Supabase Storage (bucket: avatars)
-   Usa atob() para converter base64 → Blob — compatível com iOS Safari.
-   fetch('data:...') falha silenciosamente no mobile e NÃO deve ser usado. */
+   - atob() para base64→Blob: compatível com iOS Safari (fetch(data:) falha no mobile)
+   - Filename único por upload: evita CDN servir versão antiga em cache            */
 window.sbUploadAvatar = async (userId, base64DataUrl) => {
-  // ── Conversão base64 → Blob sem fetch() (funciona em iOS/Android/Desktop) ──
+  // ── PASSO 1: conversão base64 → Blob (sem fetch, funciona em iOS/Android/Desktop) ──
+  console.log('[MEVAM][1] Convertendo base64 → Blob...');
   const commaIdx = base64DataUrl.indexOf(',');
-  if (commaIdx === -1) throw new Error('Formato de imagem inválido');
+  if (commaIdx === -1) throw new Error('Formato de imagem inválido (sem vírgula no data URL)');
   const header  = base64DataUrl.slice(0, commaIdx);
   const b64data = base64DataUrl.slice(commaIdx + 1);
   const mime    = (header.match(/:(.*?);/) || [])[1] || 'image/jpeg';
@@ -144,27 +145,25 @@ window.sbUploadAvatar = async (userId, base64DataUrl) => {
   const bytes   = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   const blob = new Blob([bytes], { type: mime });
+  console.log('[MEVAM][1] Blob criado:', blob.size, 'bytes, tipo:', mime);
 
-  const ext  = mime.includes('png') ? 'png' : 'jpg';
-  const path = `${userId}.${ext}`; // fixo por usuário — upsert sobrescreve
+  // ── PASSO 2: upload para Storage com nome único (evita cache do CDN) ──
+  const ext      = mime.includes('png') ? 'png' : 'jpg';
+  const filename = `avatar_${userId}_${Date.now()}.${ext}`;
+  console.log('[MEVAM][2] Fazendo upload para avatars/' + filename);
 
-  console.log('[MEVAM] Iniciando upload avatar:', path, `(${(blob.size / 1024).toFixed(1)} KB, ${mime})`);
+  const { data: uploadData, error: uploadError } = await SB.storage
+    .from('avatars')
+    .upload(filename, blob, { contentType: mime, upsert: true });
 
-  const { error } = await SB.storage.from('avatars').upload(path, blob, {
-    upsert: true,
-    contentType: mime,
-  });
+  console.log('[MEVAM][2] Resultado upload:', { uploadData, uploadError });
+  if (uploadError) throw new Error('Storage: ' + uploadError.message);
 
-  if (error) {
-    console.error('[MEVAM] Erro no upload Storage:', error.message);
-    throw new Error(error.message);
-  }
-
-  const { data: { publicUrl } } = SB.storage.from('avatars').getPublicUrl(path);
-  // ?t= força recarregar a imagem nova ao invés da versão em cache
-  const finalUrl = publicUrl + '?t=' + Date.now();
-  console.log('[MEVAM] Upload concluído. URL:', finalUrl);
-  return finalUrl;
+  // ── PASSO 3: URL pública ──
+  const { data: urlData } = SB.storage.from('avatars').getPublicUrl(filename);
+  const publicUrl = urlData.publicUrl;
+  console.log('[MEVAM][3] URL pública:', publicUrl);
+  return publicUrl;
 };
 
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */

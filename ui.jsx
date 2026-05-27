@@ -36,6 +36,7 @@ function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = nul
         <img
           src={foto}
           alt={iniciais}
+          crossOrigin="anonymous"
           onError={() => setImgErr(true)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />

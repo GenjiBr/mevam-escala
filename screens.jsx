@@ -3053,24 +3053,47 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     setCropImage(null);
     setUploading(true);
     try {
-      // 1. Envia para o Supabase Storage (bucket: avatars)
+      console.log('[MEVAM][upload] Iniciando. Usuario ID:', usuario.id);
+      console.log('[MEVAM][upload] Tamanho base64:', (base64.length / 1024).toFixed(1), 'KB');
+
+      // ── PASSO 1: upload para Supabase Storage ──
       let fotoUrl;
       try {
         fotoUrl = await sbUploadAvatar(usuario.id, base64);
       } catch (storageErr) {
-        console.error('[MEVAM] Falha no upload para Storage:', storageErr.message);
-        console.warn('[MEVAM] Verifique no painel do Supabase → Storage → se o bucket "avatars" existe e está público (public read).');
-        onToast('Erro ao enviar foto. Verifique o bucket "avatars" no Supabase.', 'err');
-        return; // aborta — não salva base64 gigante no banco
+        console.error('[MEVAM][upload] Falha no Storage:', storageErr.message);
+        onToast('Erro no upload: ' + storageErr.message, 'err');
+        return;
       }
-      // 2. Atualiza estado local imediatamente
+
+      // ── PASSO 2: salvar URL diretamente no banco com log completo ──
+      console.log('[MEVAM][upload] Salvando URL no banco. Membro:', usuario.id, '| URL:', fotoUrl);
+      const { data: dbData, error: dbErr } = await SB
+        .from('membros')
+        .update({ foto: fotoUrl })
+        .eq('id', usuario.id)
+        .select('id, foto');
+      console.log('[MEVAM][upload] Resultado banco:', { dbData, dbErr });
+
+      if (dbErr) {
+        console.error('[MEVAM][upload] Erro ao salvar no banco:', dbErr.message, dbErr);
+        onToast('Foto enviada, mas erro ao salvar no banco: ' + dbErr.message, 'err');
+        return;
+      }
+      if (!dbData || dbData.length === 0) {
+        console.warn('[MEVAM][upload] Update retornou 0 linhas — ID não encontrado na tabela membros?', usuario.id);
+      }
+
+      // ── PASSO 3: atualiza estado React local ──
+      console.log('[MEVAM][upload] Atualizando estado local.');
       setFoto(fotoUrl);
-      // 3. Persiste no banco (await garante que erros sejam capturados)
-      await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: fotoUrl } });
+      // sincroniza state global (sem re-salvar no banco — foto já persistida acima)
+      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: fotoUrl } });
       onToast('Foto atualizada com sucesso!', 'ok');
+      console.log('[MEVAM][upload] Concluído.');
     } catch (e) {
-      console.error('[MEVAM] Erro ao salvar foto no banco:', e.message);
-      onToast('Foto enviada mas erro ao salvar. Tente novamente.', 'err');
+      console.error('[MEVAM][upload] Erro inesperado:', e.message, e);
+      onToast('Erro inesperado ao enviar foto: ' + e.message, 'err');
     } finally {
       setUploading(false);
     }
