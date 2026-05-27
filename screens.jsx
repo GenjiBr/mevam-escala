@@ -125,17 +125,44 @@ function LoginScreen() {
         }}>
           <Icon name="sparkles" size={13} /> Escala de Louvor e Mídia
         </div>
-        <h1 style={{
-          margin: '20px 0 10px',
-          fontFamily: '"Bricolage Grotesque", "Manrope", sans-serif',
-          fontWeight: 600, fontSize: 36, lineHeight: 1.02,
-          color: MEVAM_COLORS.text, letterSpacing: -1,
+        {/* ── Ícones: Amar · Servir · Edificar ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 36, margin: '22px 0 14px',
         }}>
-          Amar, servir, <span style={{
-            background: 'linear-gradient(90deg, #FFFFFF, #8FA8FF)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>edificar</span>
-        </h1>
+          {/* ❤️ Coração — Amar */}
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <path d="
+              M24 42
+              C 20 38, 5 30, 5 18
+              C 5 12.5 9.5 8 15 8
+              C 18.4 8 21.4 9.9 23.1 12.7
+              C 23.5 13.3 23.8 14 24 14
+              C 24.2 14 24.5 13.3 24.9 12.7
+              C 26.6 9.9 29.6 8 33 8
+              C 38.5 8 43 12.5 43 18
+              C 43 30 28 38 24 42 Z
+            " fill="white"/>
+          </svg>
+
+          {/* 🤲 Mão aberta — Servir */}
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            {/* 4 dedos */}
+            <rect x="9"  y="9"  width="6" height="22" rx="3" fill="white"/>
+            <rect x="17" y="7"  width="6" height="24" rx="3" fill="white"/>
+            <rect x="25" y="7"  width="6" height="24" rx="3" fill="white"/>
+            <rect x="33" y="9"  width="6" height="22" rx="3" fill="white"/>
+            {/* Palma */}
+            <rect x="9"  y="27" width="30" height="14" rx="5" fill="white"/>
+          </svg>
+
+          {/* 🏠 Casa — Edificar */}
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            {/* Casa com porta recortada via evenodd */}
+            <path fillRule="evenodd" fill="white"
+              d="M24 5 L4 23 H9 V43 H39 V23 H44 Z  M20 30 H28 V43 H20 Z"/>
+          </svg>
+        </div>
         <p style={{ margin: 0, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 14, lineHeight: 1.5 }}>
           Organize a equipe, evite conflitos<br/>e prepare cada culto com clareza.
         </p>
