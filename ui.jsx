@@ -226,6 +226,18 @@ function Icon({ name, size = 18 }) {
     case 'pin':      return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M12 21s-7-6-7-12a7 7 0 0114 0c0 6-7 12-7 12z" {...stroke}/><circle cx="12" cy="9" r="2.5" {...stroke}/></svg>);
     case 'x':        return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M6 6l12 12M6 18L18 6" {...stroke}/></svg>);
     case 'trash':    return (<svg width={s} height={s} viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" {...stroke}/><path d="M10 11v5M14 11v5" {...stroke}/></svg>);
+    case 'clef':     return (
+      /* 𝄞 U+1D11E — MUSICAL SYMBOL G CLEF
+         Renderizado como texto para garantir o glifo correto em todos
+         os dispositivos. Herda color do botão pai (active/inativo). */
+      <span aria-hidden="true" style={{
+        fontSize: Math.round(s * 1.25),
+        lineHeight: 1,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: s, height: s,
+        color: 'currentColor',
+      }}>𝄞</span>
+    );
     default: return null;
   }
 }

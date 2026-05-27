@@ -79,7 +79,7 @@ function reducer(state, action) {
 ───────────────────────────────────────────────── */
 function TabBar({ tab, setTab, perfil }) {
   const tabs = [
-    { id: 'escala',          label: 'Escala',   icon: 'home'     },
+    { id: 'escala',          label: 'Escala',   icon: 'clef'     },
     { id: 'disponibilidade', label: 'Ausência', icon: 'ban'      },
     { id: 'membros',         label: 'Equipe',   icon: 'users'    },
     { id: 'perfil',          label: 'Perfil',   icon: 'person'   },
