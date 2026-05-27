@@ -185,18 +185,25 @@ function App() {
 
   /* ── Gerar escala automática ──────────────────────────────────────────────
      semanas: número de semanas a cobrir (4=1mês, 13=3m, 26=6m, 52=1ano)
-     Algoritmo:
-       • Só aloca membro em um slot se ele tem aquela func (principal ou secundária)
-       • Nunca escalona o mesmo membro duas vezes no mesmo culto
-       • Distribui a carga: a cada slot escolhe o candidato com MENOS cultos
-       • Processa cultos em ordem cronológica para manter alternância coerente
+
+     REGRAS RÍGIDAS:
+       1. Cultos futuros são ZERADOS antes de redistribuir (evita dados ruins legados)
+       2. Slot só recebe membro se ele tem aquela func como principal OU secundária
+       3. Mesmo membro não pode aparecer duas vezes no mesmo culto
+       4. Candidato com menor carga acumulada tem prioridade (load balancing)
+       5. Sem candidatos qualificados → slot fica VAZIO (nunca aloca errado)
   ─────────────────────────────────────────────────────────────────────────── */
   const handleGerarEscala = useCallbackApp(async (semanas = 8) => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const hojeISO = hoje.toISOString().slice(0, 10);
     const fmtISO = (d) => d.toISOString().slice(0, 10);
     const funcKeys = Object.keys(window.FUNCOES || {});
     const escaladosVazios = () => Object.fromEntries(funcKeys.map((k) => [k, null]));
     const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };
+
+    const membrosAtivos = state.membros.filter((m) => m.status === 'ativo');
+    console.log('[MEVAM] ══ Gerando escala ══ semanas:', semanas, '| membros ativos:', membrosAtivos.length);
+    console.log('[MEVAM] Perfis:', membrosAtivos.map((m) => `${m.nome} [func:${m.func}] [sec:${(m.secundarias||[]).join(',')}]`));
 
     // 1. Identificar e deletar cultos inválidos (quartas + domingos/quintas mal nomeados)
     const parasApagar = state.cultos.filter((c) => {
@@ -236,64 +243,63 @@ function App() {
       }
     }
 
-    // 5. Distribuição equilibrada — processa em ordem cronológica
-    //    Contador global de alocações por membro (carga acumulada)
+    // 5. ZERAR escalados de todos os cultos FUTUROS (não-manuais) antes de redistribuir
+    //    Isso elimina qualquer dado corrompido salvo anteriormente
+    existentes = existentes.map((c) => {
+      const dow = new Date(c.data + 'T00:00:00').getDay();
+      if (dow === 5 || dow === 6) return c;  // sex/sáb: 100% manual — não toca
+      if (c.data < hojeISO) return c;         // passado: preserva intacto
+      return { ...c, escalados: escaladosVazios() }; // futuro: rebuild limpo
+    });
+
+    // 6. Contador de carga (apenas cultos passados já contam para o histórico)
     const contagem = {};
     for (const m of state.membros) contagem[m.id] = 0;
     for (const c of existentes) {
+      if (c.data >= hojeISO) continue; // futuros estão zerados; passados contam
       for (const val of Object.values(c.escalados)) {
         const ids = Array.isArray(val) ? val : (val ? [val] : []);
         for (const id of ids) contagem[id] = (contagem[id] || 0) + 1;
       }
     }
 
+    // 7. Distribuição — processa cultos futuros em ordem cronológica
     const novosCultos = [...existentes]
       .sort((a, b) => a.data.localeCompare(b.data))
       .map((c) => {
         const dow = new Date(c.data + 'T00:00:00').getDay();
-        if (dow === 5 || dow === 6) return c; // sex/sáb: 100% manual
+        if (dow === 5 || dow === 6) return c;  // manual
+        if (c.data < hojeISO) return c;         // passado: intocável
 
         const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
-        const esc = { ...c.escalados };
+        const esc = { ...c.escalados }; // todos null após o reset acima
+        const jaEscaladosNesteCulto = new Set(); // evita dupla escala no mesmo culto
 
-        // Quem já está alocado neste culto (evita dupla escala no mesmo culto)
-        const jaEscaladosNesteCulto = new Set();
-        for (const val of Object.values(esc)) {
-          const ids = Array.isArray(val) ? val : (val ? [val] : []);
-          for (const id of ids) {
-            if (!indispoIds.includes(id)) jaEscaladosNesteCulto.add(id);
-          }
-        }
+        for (const fid of Object.keys(esc)) {
+          if (Array.isArray(esc[fid])) continue; // multi-membro: manual
 
-        for (const [fid, val] of Object.entries(esc)) {
-          if (Array.isArray(val)) continue; // slots multi-membro são 100% manuais
-
-          // Libera slot se membro atual está indisponível nesta data
-          if (val && indispoIds.includes(val)) {
-            jaEscaladosNesteCulto.delete(val);
-            esc[fid] = null;
-          }
-
-          if (esc[fid]) continue; // slot já preenchido e válido
-
-          // Candidatos: função correta + ativo + disponível + não está neste culto
-          const candidatos = state.membros.filter((m) =>
-            m.status === 'ativo' &&
+          // ── REGRA CENTRAL: só entra quem TEM A FUNÇÃO correta ──
+          const candidatos = membrosAtivos.filter((m) =>
             (m.func === fid || (m.secundarias || []).includes(fid)) &&
             !indispoIds.includes(m.id) &&
             !jaEscaladosNesteCulto.has(m.id)
           );
 
-          if (candidatos.length === 0) continue; // sem candidatos → slot fica vazio
+          console.log(`[MEVAM] ${c.data} | slot "${fid}" | candidatos: [${candidatos.map((m) => m.nome).join(', ') || 'NENHUM'}]`);
 
-          // Escolhe quem tem MENOS cultos atribuídos (load balancing)
-          // Em caso de empate, a ordem original (alfabética) desempata — garante alternância
+          if (candidatos.length === 0) {
+            console.log(`[MEVAM]  → VAZIO (nenhum membro com a função "${fid}")`);
+            continue;
+          }
+
+          // Menor carga → prioridade (desempate pela ordem original = alfabética)
           candidatos.sort((a, b) => (contagem[a.id] || 0) - (contagem[b.id] || 0));
           const escolhido = candidatos[0];
 
           esc[fid] = escolhido.id;
           jaEscaladosNesteCulto.add(escolhido.id);
           contagem[escolhido.id] = (contagem[escolhido.id] || 0) + 1;
+          console.log(`[MEVAM]  → ${escolhido.nome} (carga total: ${contagem[escolhido.id]})`);
         }
 
         return { ...c, escalados: esc };
