@@ -145,15 +145,10 @@ function LoginScreen() {
             " fill="white"/>
           </svg>
 
-          {/* 🤲 Mão aberta — Servir */}
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            {/* 4 dedos */}
-            <rect x="9"  y="9"  width="6" height="22" rx="3" fill="white"/>
-            <rect x="17" y="7"  width="6" height="24" rx="3" fill="white"/>
-            <rect x="25" y="7"  width="6" height="24" rx="3" fill="white"/>
-            <rect x="33" y="9"  width="6" height="22" rx="3" fill="white"/>
-            {/* Palma */}
-            <rect x="9"  y="27" width="30" height="14" rx="5" fill="white"/>
+          {/* 🤲 Mão aberta com palma para cima — Servir */}
+          {/* viewBox recortado para o bounding-box do path (x5-90, y30-90) */}
+          <svg width="48" height="48" viewBox="5 30 85 60" fill="white">
+            <path d="M10,55 Q15,35 35,40 L65,38 Q75,38 75,48 Q75,52 70,53 L75,53 Q85,53 85,63 Q85,70 75,71 L70,71 Q75,71 75,79 Q75,85 65,85 L35,85 Q20,85 10,70 Z"/>
           </svg>
 
           {/* 🏠 Casa — Edificar */}
