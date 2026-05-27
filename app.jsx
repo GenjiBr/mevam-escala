@@ -150,6 +150,7 @@ function App() {
   const [toast, setToast] = useStateApp({ msg: '', kind: 'ok' });
   const [authLoading, setAuthLoading] = useStateApp(true);
   const [equipe, setEquipe] = useStateApp(null);
+  const [recuperandoSenha, setRecuperandoSenha] = useStateApp(false);
 
   const showToast = (msg, kind = 'ok') => setToast({ msg, kind });
 
@@ -276,6 +277,12 @@ function App() {
   /* ── Auth: escuta mudanças de sessão ── */
   useEffectApp(() => {
     const { data: { subscription } } = SB.auth.onAuthStateChange(async (event, session) => {
+      // Usuário clicou no link de recuperação de senha
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecuperandoSenha(true);
+        setAuthLoading(false);
+        return;
+      }
       if (session?.user) {
         const emailUsuario = session.user.email;
         const partes = (emailUsuario || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
@@ -385,6 +392,12 @@ function App() {
 
   /* ── Renders condicionais ── */
   if (authLoading) return <SplashScreen msg="Verificando sessão..." />;
+  if (recuperandoSenha) return (
+    <RedefinirSenhaScreen
+      onToast={showToast}
+      onConcluido={() => { setRecuperandoSenha(false); setUsuario(null); }}
+    />
+  );
   if (!usuario)   return <LoginScreen />;
   if (state.carregando) return <SplashScreen msg="Carregando dados..." />;
   if (!equipe) return <SetupScreen onCriar={handleCriarEquipe} onEntrar={handleEntrarEquipe} usuario={usuario} onToast={showToast} />;

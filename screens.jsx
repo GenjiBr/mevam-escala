@@ -58,6 +58,7 @@ function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [info, setInfo] = useState('');
+  const [mostrarEsqueci, setMostrarEsqueci] = useState(false);
 
   const handleEntrar = async () => {
     if (!email.trim()) { setErr('Informe seu e-mail'); return; }
@@ -149,6 +150,8 @@ function LoginScreen() {
           <SegBtn active={modo === 'criar'}  onClick={() => { setModo('criar');  setErr(''); setInfo(''); }} icon={<Icon name="plus"   size={14}/>}>Criar conta</SegBtn>
         </div>
 
+        {mostrarEsqueci && <EsqueciSenhaModal onClose={() => setMostrarEsqueci(false)} />}
+
         <Card glow accent={MEVAM_COLORS.accent} style={{ padding: 18 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -173,6 +176,24 @@ function LoginScreen() {
                 onKeyDown={(e) => e.key === 'Enter' && (modo === 'entrar' ? handleEntrar() : handleCriar())} />
             </Field>
 
+            {/* ── Link "Esqueci minha senha" — só no modo entrar ── */}
+            {modo === 'entrar' && (
+              <div style={{ textAlign: 'right', marginTop: -4 }}>
+                <button
+                  onClick={() => setMostrarEsqueci(true)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0,
+                    color: MEVAM_COLORS.accent, fontSize: 12.5,
+                    fontFamily: 'Manrope', fontWeight: 600,
+                    cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3,
+                    opacity: 0.85,
+                  }}
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+            )}
+
             {err  && <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope', lineHeight: 1.4 }}>{err}</div>}
             {info && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, background: MEVAM_COLORS.ok + '18', border: `1px solid ${MEVAM_COLORS.ok}44` }}>
@@ -186,6 +207,215 @@ function LoginScreen() {
               disabled={loading}
               style={{ marginTop: 2 }}>
               {loading ? 'Aguarde...' : modo === 'entrar' ? 'Entrar' : 'Criar conta'}
+            </Btn>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL — Esqueci minha senha (portal para escapar do backdrop-filter)
+// ════════════════════════════════════════════════════════════
+function EsqueciSenhaModal({ onClose }) {
+  const [emailR, setEmailR] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [ok, setOk] = useState(false);
+
+  const handleEnviar = async () => {
+    if (!emailR.trim()) { setErr('Informe seu e-mail'); return; }
+    setLoading(true); setErr('');
+    const { error } = await SB.auth.resetPasswordForEmail(emailR.trim().toLowerCase(), {
+      redirectTo: window.location.href,
+    });
+    setLoading(false);
+    if (error) {
+      setErr('Erro ao enviar. Verifique o e-mail e tente novamente.');
+    } else {
+      setOk(true);
+    }
+  };
+
+  const conteudo = (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(2,5,12,0.88)',
+      backdropFilter: 'blur(8px)',
+      WebkitBackdropFilter: 'blur(8px)',
+      zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '24px 16px',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 380,
+        background: '#0D1526',
+        borderRadius: 22,
+        border: '1.5px solid rgba(91,127,255,0.25)',
+        padding: 24,
+        animation: 'slideUp .22s ease-out',
+      }}>
+        {/* cabeçalho */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{
+            fontFamily: '"Bricolage Grotesque", Manrope, sans-serif',
+            fontWeight: 700, fontSize: 18, color: MEVAM_COLORS.text,
+          }}>
+            Recuperar senha
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: MEVAM_COLORS.muted,
+            cursor: 'pointer', padding: 4, borderRadius: 8,
+          }}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        {ok ? (
+          /* ── estado de sucesso ── */
+          <div>
+            <div style={{
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+              padding: '12px 14px', borderRadius: 12,
+              background: MEVAM_COLORS.ok + '18', border: `1px solid ${MEVAM_COLORS.ok}44`,
+              marginBottom: 18,
+            }}>
+              <Icon name="check" size={16} />
+              <div style={{ color: MEVAM_COLORS.ok, fontSize: 13, fontFamily: 'Manrope', lineHeight: 1.5 }}>
+                Link enviado para <strong>{emailR}</strong>. Verifique sua caixa de entrada e pasta de spam.
+              </div>
+            </div>
+            <Btn variant="ghost" full onClick={onClose}>Fechar</Btn>
+          </div>
+        ) : (
+          /* ── formulário ── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <p style={{ margin: 0, color: MEVAM_COLORS.muted, fontSize: 13, fontFamily: 'Manrope', lineHeight: 1.5 }}>
+              Informe o e-mail da sua conta e enviaremos um link para criar uma nova senha.
+            </p>
+            <Field label="E-mail">
+              <input
+                value={emailR}
+                onChange={(e) => { setEmailR(e.target.value); setErr(''); }}
+                placeholder="seu@email.com"
+                type="email"
+                inputMode="email"
+                style={inputStyle}
+                autoCapitalize="none"
+                autoComplete="email"
+                onKeyDown={(e) => e.key === 'Enter' && handleEnviar()}
+              />
+            </Field>
+            {err && (
+              <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope', lineHeight: 1.4 }}>{err}</div>
+            )}
+            <Btn variant="accent" full onClick={handleEnviar} disabled={loading}>
+              {loading ? 'Enviando...' : 'Enviar link de redefinição'}
+            </Btn>
+            <Btn variant="ghost" full onClick={onClose}>Cancelar</Btn>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return ReactDOM.createPortal(conteudo, document.body);
+}
+
+// ════════════════════════════════════════════════════════════
+// TELA — Redefinir senha (exibida após clicar no link do e-mail)
+// ════════════════════════════════════════════════════════════
+function RedefinirSenhaScreen({ onConcluido, onToast }) {
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmSenha, setConfirmSenha] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleSalvar = async () => {
+    if (novaSenha.length < 6) { setErr('A senha precisa ter no mínimo 6 caracteres'); return; }
+    if (novaSenha !== confirmSenha) { setErr('As senhas não coincidem'); return; }
+    setLoading(true); setErr('');
+    const { error } = await SB.auth.updateUser({ password: novaSenha });
+    setLoading(false);
+    if (error) {
+      setErr(error.message || 'Erro ao atualizar a senha. Tente novamente.');
+    } else {
+      onToast('Senha atualizada com sucesso!', 'ok');
+      await SB.auth.signOut();
+      onConcluido();
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      padding: '60px 22px calc(24px + env(safe-area-inset-bottom))',
+      position: 'relative',
+      background: `radial-gradient(120% 70% at 50% 0%, rgba(91,127,255,0.22) 0%, rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
+    }}>
+      {/* aurora glow */}
+      <div style={{
+        position: 'absolute', top: -120, left: -80, right: -80, height: 360,
+        background: 'radial-gradient(50% 60% at 50% 50%, rgba(91,127,255,0.45) 0%, rgba(4,8,26,0) 70%)',
+        filter: 'blur(30px)', pointerEvents: 'none',
+      }} />
+
+      {/* logo */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 10, position: 'relative' }}>
+        <MevamLogo />
+      </div>
+
+      {/* form */}
+      <div style={{ marginTop: 36, position: 'relative' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '6px 12px', borderRadius: 999,
+            background: 'rgba(91,127,255,0.14)', border: '1px solid rgba(91,127,255,0.35)',
+            fontFamily: 'Manrope', fontSize: 11.5, fontWeight: 600, color: '#A8BBFF',
+            letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 14,
+          }}>
+            <Icon name="shield" size={13} /> Nova senha
+          </div>
+          <h2 style={{
+            margin: '0 0 8px',
+            fontFamily: '"Bricolage Grotesque", Manrope, sans-serif',
+            fontWeight: 700, fontSize: 26, color: MEVAM_COLORS.text, letterSpacing: -0.5,
+          }}>Redefinir senha</h2>
+          <p style={{ margin: 0, color: MEVAM_COLORS.muted, fontSize: 14, fontFamily: 'Manrope', lineHeight: 1.5 }}>
+            Escolha uma nova senha para a sua conta.
+          </p>
+        </div>
+
+        <Card glow accent={MEVAM_COLORS.accent} style={{ padding: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Field label="Nova senha">
+              <input
+                value={novaSenha}
+                onChange={(e) => { setNovaSenha(e.target.value); setErr(''); }}
+                placeholder="Mínimo 6 caracteres"
+                type="password"
+                style={inputStyle}
+                autoComplete="new-password"
+              />
+            </Field>
+            <Field label="Confirmar nova senha">
+              <input
+                value={confirmSenha}
+                onChange={(e) => { setConfirmSenha(e.target.value); setErr(''); }}
+                placeholder="Repita a nova senha"
+                type="password"
+                style={inputStyle}
+                autoComplete="new-password"
+                onKeyDown={(e) => e.key === 'Enter' && handleSalvar()}
+              />
+            </Field>
+            {err && (
+              <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope', lineHeight: 1.4 }}>{err}</div>
+            )}
+            <Btn variant="accent" full onClick={handleSalvar} disabled={loading} style={{ marginTop: 2 }}>
+              {loading ? 'Salvando...' : 'Salvar nova senha'}
             </Btn>
           </div>
         </Card>
