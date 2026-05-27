@@ -130,6 +130,16 @@ window.sbExcluirTodaEscala = async () => {
   if (error) { console.error('sbExcluirTodaEscala:', error.message); throw new Error(error.message); }
 };
 
+/* Remove todos os membros da equipe (equipe_id → null) e apaga o registro da equipe */
+window.sbExcluirEquipe = async (equipeId) => {
+  const { error: e1 } = await SB.from('membros')
+    .update({ equipe_id: null, perfil: 'membro' })
+    .eq('equipe_id', equipeId);
+  if (e1) console.error('sbExcluirEquipe membros:', e1.message);
+  const { error: e2 } = await SB.from('equipes').delete().eq('id', equipeId);
+  if (e2) { console.error('sbExcluirEquipe equipe:', e2.message); throw new Error(e2.message); }
+};
+
 /* Upload da foto de perfil para Supabase Storage (bucket: avatars)
    Recebe um File object direto do <input type="file"> — sem base64, sem crop.
    Funciona em iOS, Android e Desktop sem conversão intermediária.             */
@@ -137,11 +147,16 @@ window.sbUploadAvatar = async (userId, arquivo) => {
   const rawExt  = (arquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
   const ext     = rawExt || 'jpg';
   const nome    = `avatar_${userId}_${Date.now()}.${ext}`;
-  console.log('[MEVAM] Upload →', nome, `(${(arquivo.size / 1024).toFixed(1)} KB, ${arquivo.type})`);
+
+  // Android Chrome (câmera) frequentemente envia arquivo.type vazio — forçar MIME explícito
+  const mimeMap = { png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif' };
+  const contentType = arquivo.type || mimeMap[ext] || 'image/jpeg';
+
+  console.log('[MEVAM] Upload →', nome, `(${(arquivo.size / 1024).toFixed(1)} KB, contentType: ${contentType})`);
 
   const { data, error } = await SB.storage
     .from('avatars')
-    .upload(nome, arquivo, { upsert: true });
+    .upload(nome, arquivo, { upsert: true, contentType });
   console.log('[MEVAM] Storage result:', { data, error });
   if (error) throw new Error(error.message);
 

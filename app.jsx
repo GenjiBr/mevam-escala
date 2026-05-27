@@ -201,7 +201,7 @@ function App() {
     const escaladosVazios = () => Object.fromEntries(funcKeys.map((k) => [k, null]));
     const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };
 
-    const membrosAtivos = state.membros.filter((m) => m.status === 'ativo');
+    const membrosAtivos = state.membros.filter((m) => m.status === 'ativo' && m.equipe_id === equipe?.id);
     console.log('[MEVAM] ══ Gerando escala ══ semanas:', semanas, '| membros ativos:', membrosAtivos.length);
     console.log('[MEVAM] Perfis:', membrosAtivos.map((m) => `${m.nome} [func:${m.func}] [sec:${(m.secundarias||[]).join(',')}]`));
 
@@ -254,7 +254,7 @@ function App() {
 
     // 6. Contador de carga (apenas cultos passados já contam para o histórico)
     const contagem = {};
-    for (const m of state.membros) contagem[m.id] = 0;
+    for (const m of membrosAtivos) contagem[m.id] = 0;
     for (const c of existentes) {
       if (c.data >= hojeISO) continue; // futuros estão zerados; passados contam
       for (const val of Object.values(c.escalados)) {
@@ -314,7 +314,7 @@ function App() {
     }).length;
     const label = semanas <= 4 ? '1 mês' : semanas <= 13 ? '3 meses' : semanas <= 26 ? '6 meses' : '1 ano';
     showToast(`Escala gerada (${label}) — ${gerados} cultos!`, 'ok');
-  }, [state.cultos, state.membros, state.indispo]);
+  }, [state.cultos, state.membros, state.indispo, equipe]);
 
   /* ── Adicionar culto manual (sex/sáb) ── */
   const handleAddCultoManual = useCallbackApp(async ({ data, horario, titulo }) => {
@@ -438,6 +438,28 @@ function App() {
     }
   };
 
+  const handleSairEquipe = async () => {
+    await sbSairDaEscala(usuario.id);
+    await sbUpdateMembro(usuario.id, { equipe_id: null });
+    _dispatch({ type: 'sair_escala', usuarioId: usuario.id });
+    _dispatch({ type: 'update_membro', id: usuario.id, updates: { equipe_id: null } });
+    setEquipe(null);
+    showToast('Você saiu da escala com sucesso', 'ok');
+  };
+
+  const handleExcluirEquipe = async () => {
+    await sbExcluirTodaEscala();
+    if (equipe?.id) await sbExcluirEquipe(equipe.id);
+    _dispatch({ type: 'excluir_escala' });
+    (state.membros || []).forEach((m) => {
+      if (m.equipe_id === equipe?.id) {
+        _dispatch({ type: 'update_membro', id: m.id, updates: { equipe_id: null, perfil: 'membro' } });
+      }
+    });
+    setEquipe(null);
+    showToast('Escala excluída. Todos os membros foram removidos.', 'ok');
+  };
+
   const handleLogout = async () => {
     try { await SB.auth.signOut(); } catch (e) { console.warn('signOut:', e.message); }
     setUsuario(null);
@@ -457,11 +479,11 @@ function App() {
   );
   if (!usuario)   return <LoginScreen />;
   if (state.carregando) return <SplashScreen msg="Carregando dados..." />;
-  if (!equipe) return <SetupScreen onCriar={handleCriarEquipe} onEntrar={handleEntrarEquipe} usuario={usuario} onToast={showToast} />;
+  if (!equipe) return <SetupScreen onCriar={handleCriarEquipe} onEntrar={handleEntrarEquipe} usuario={usuario} onToast={showToast} onLogout={handleLogout} />;
 
   const screens = {
-    escala:          <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onPerfilClick={() => setTab('perfil')} />,
-    disponibilidade: <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} />,
+    escala:          <EscalaScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onPerfilClick={() => setTab('perfil')} onExcluirEquipe={handleExcluirEquipe} onSairEquipe={handleSairEquipe} />,
+    disponibilidade: <DisponibilidadeScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} equipe={equipe} />,
     membros:         <MembrosScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} />,
     perfil:          <PerfilScreen state={state} dispatch={dispatch} usuario={usuario} onToast={showToast} onLogout={handleLogout} onUpdateUsuario={handleUpdateUsuario} />,
     admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onGerarEscala={handleGerarEscala} onAddCultoManual={handleAddCultoManual} />,

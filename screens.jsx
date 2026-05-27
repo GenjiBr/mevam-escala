@@ -468,7 +468,7 @@ function DemoChip({ children, onClick }) {
 // ════════════════════════════════════════════════════════════
 // SETUP (criar ou entrar em uma equipe)
 // ════════════════════════════════════════════════════════════
-function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
+function SetupScreen({ onCriar, onEntrar, usuario, onToast, onLogout }) {
   const [modo, setModo] = useState(null); // null | 'criar' | 'entrar'
   const [nome, setNome] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -504,6 +504,24 @@ function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
         filter: 'blur(30px)', pointerEvents: 'none',
       }} />
 
+      {/* botão sair — canto superior direito */}
+      <button
+        onClick={onLogout}
+        style={{
+          position: 'absolute', top: 16, right: 16,
+          background: 'none', border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 5,
+          color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 500,
+          padding: '6px 10px', borderRadius: 10,
+          transition: 'color .15s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.color = MEVAM_COLORS.text}
+        onMouseLeave={(e) => e.currentTarget.style.color = MEVAM_COLORS.muted}
+      >
+        <Icon name="logout" size={14} />
+        Sair
+      </button>
+
       {/* logo */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, position: 'relative' }}>
         <MevamLogo small />
@@ -511,7 +529,7 @@ function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
 
       <div style={{ position: 'relative' }}>
         <h2 style={{ margin: '0 0 6px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 28, color: MEVAM_COLORS.text, letterSpacing: -0.6, lineHeight: 1.1 }}>
-          Olá, {primeiroNome}! 👋
+          Olá, {primeiroNome}!
         </h2>
         <p style={{ margin: '0 0 28px', color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 14, lineHeight: 1.55 }}>
           Para começar, crie uma nova escala ou<br/>entre em uma equipe já existente.
@@ -607,41 +625,50 @@ function SetupScreen({ onCriar, onEntrar, usuario, onToast }) {
 // ════════════════════════════════════════════════════════════
 // MODAL — código de convite
 // ════════════════════════════════════════════════════════════
-function CodigoModal({ equipe, state, dispatch, usuario, onToast, onClose }) {
+function CodigoModal({ equipe, state, dispatch, usuario, onToast, onClose, onExcluirEquipe, onSairEquipe }) {
   const [copiado, setCopiado] = useState(false);
   const [confirmando, setConfirmando] = useState(null); // null | 'sair' | 'excluir'
   const [processando, setProcessando] = useState(false);
-  const isAdmin = usuario?.perfil === 'admin';
+
+  if (!equipe) return null;
+
+  const membroAtual = state.membros.find((m) => m.id === usuario?.id);
+  const isAdmin = membroAtual?.perfil === 'admin' || usuario?.perfil === 'admin';
+  const isCriador = !!(equipe.criado_por && usuario?.id && String(equipe.criado_por) === String(usuario.id));
+  const temEquipeId = !!(membroAtual?.equipe_id);
+  const mostrarSairEscala = temEquipeId && !isCriador;
+
+  console.log('[MEVAM] CodigoModal diag →', {
+    usuarioId: usuario?.id,
+    criadoPor: equipe.criado_por,
+    isCriador,
+    isAdmin,
+    membroEquipeId: membroAtual?.equipe_id,
+    temEquipeId,
+    mostrarSairEscala,
+  });
 
   const handleSairEscala = async () => {
     if (processando) return;
     setProcessando(true);
     try {
-      await dispatch({ type: 'sair_escala', usuarioId: usuario.id });
-      onToast('Você saiu da escala com sucesso', 'ok');
+      await onSairEquipe();
       onClose();
     } catch (e) {
       onToast('Erro ao sair: ' + (e.message || 'tente novamente'), 'err');
-    } finally {
-      setProcessando(false);
-    }
+    } finally { setProcessando(false); }
   };
 
   const handleExcluirEscala = async () => {
     if (processando) return;
     setProcessando(true);
     try {
-      await dispatch({ type: 'excluir_escala' });
-      onToast('Escala excluída com sucesso', 'ok');
+      await onExcluirEquipe();
       onClose();
     } catch (e) {
       onToast('Erro ao excluir: ' + (e.message || 'tente novamente'), 'err');
-    } finally {
-      setProcessando(false);
-    }
+    } finally { setProcessando(false); }
   };
-
-  if (!equipe) return null;
 
   const copiar = () => {
     if (navigator.clipboard) {
@@ -662,100 +689,102 @@ function CodigoModal({ equipe, state, dispatch, usuario, onToast, onClose }) {
     }
   };
 
-  return (
+  const conteudo = (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
-      zIndex: 90, display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s',
+      zIndex: 200, display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s',
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: 480, margin: '0 auto',
         background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-        padding: '24px 24px calc(110px + env(safe-area-inset-bottom))',
+        padding: '20px 22px 32px',
         border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
         animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
-        maxHeight: '85dvh', overflowY: 'auto',
       }}>
         {/* handle */}
-        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 22px' }} />
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 18px' }} />
 
         {/* título */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
             <Icon name="person" size={18}/>
           </div>
           <div>
-            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>Convidar para a equipe</div>
-            <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, marginTop: 2 }}>{equipe.nome}</div>
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, letterSpacing: -0.3 }}>Convidar para a equipe</div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 2 }}>{equipe.nome}</div>
           </div>
         </div>
 
-        {/* código visual */}
-        <div style={{
-          borderRadius: 18, padding: '22px 18px 20px',
-          background: `linear-gradient(135deg, rgba(91,127,255,0.16), rgba(91,127,255,0.06))`,
-          border: `1px solid ${MEVAM_COLORS.accent}44`, textAlign: 'center', marginBottom: 16,
-        }}>
-          <div style={{ fontFamily: 'Manrope', fontSize: 11, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 14 }}>
-            Código de convite
-          </div>
-          {/* letras individuais */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginBottom: 16 }}>
-            {equipe.codigo.split('').map((ch, i) => (
-              <div key={i} style={{
-                width: 44, height: 54, borderRadius: 12,
-                background: 'rgba(0,0,0,0.45)', border: `1.5px solid ${MEVAM_COLORS.accent}66`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 24, color: '#A8BBFF',
-                boxShadow: `0 0 14px ${MEVAM_COLORS.accent}20`,
-              }}>{ch}</div>
-            ))}
-          </div>
-          <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.mutedSoft, lineHeight: 1.55 }}>
-            Compartilhe com os membros da equipe.<br/>Eles acessam o app → <strong style={{ color: MEVAM_COLORS.muted }}>Criar Escala</strong> → <strong style={{ color: MEVAM_COLORS.muted }}>Entrar com código</strong>.
-          </div>
-        </div>
-
-        {/* botões */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Btn variant="ghost" full onClick={copiar} icon={<Icon name={copiado ? 'check' : 'edit'} size={14}/>}>
-            {copiado ? 'Copiado!' : 'Copiar código'}
-          </Btn>
-          <Btn variant="accent" full onClick={compartilhar} icon={<Icon name="share" size={14}/>}>
-            Compartilhar
-          </Btn>
-        </div>
-
-        {/* separador */}
-        <div style={{ height: 1, background: MEVAM_COLORS.border, margin: '20px 0 16px' }} />
-
-        {/* ações de saída */}
+        {/* ── tela principal: código + copiar/compartilhar + ações ── */}
         {confirmando === null && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Btn variant="danger" full
-              icon={<span style={{ fontSize: 15 }}>🚪</span>}
-              onClick={() => setConfirmando('sair')}>
-              Sair da Escala
-            </Btn>
-            {isAdmin && (
-              <Btn variant="danger" full
-                icon={<Icon name="trash" size={14}/>}
-                onClick={() => setConfirmando('excluir')}
-                style={{ opacity: 0.85 }}>
-                Excluir Escala
+          <div>
+            {/* bloco código */}
+            <div style={{
+              borderRadius: 16, padding: '16px 14px 14px',
+              background: `linear-gradient(135deg, rgba(91,127,255,0.16), rgba(91,127,255,0.06))`,
+              border: `1px solid ${MEVAM_COLORS.accent}44`, textAlign: 'center', marginBottom: 12,
+            }}>
+              <div style={{ fontFamily: 'Manrope', fontSize: 10, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 }}>
+                Código de convite
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
+                {equipe.codigo.split('').map((ch, i) => (
+                  <div key={i} style={{
+                    width: 40, height: 48, borderRadius: 10,
+                    background: 'rgba(0,0,0,0.45)', border: `1.5px solid ${MEVAM_COLORS.accent}66`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 22, color: '#A8BBFF',
+                  }}>{ch}</div>
+                ))}
+              </div>
+              <div style={{ fontFamily: 'Manrope', fontSize: 11, color: MEVAM_COLORS.mutedSoft, lineHeight: 1.5 }}>
+                Eles acessam o app → <strong style={{ color: MEVAM_COLORS.muted }}>Criar Escala</strong> → <strong style={{ color: MEVAM_COLORS.muted }}>Entrar com código</strong>.
+              </div>
+            </div>
+
+            {/* copiar / compartilhar */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <Btn variant="ghost" full onClick={copiar} icon={<Icon name={copiado ? 'check' : 'edit'} size={14}/>}>
+                {copiado ? 'Copiado!' : 'Copiar código'}
               </Btn>
-            )}
+              <Btn variant="accent" full onClick={compartilhar} icon={<Icon name="share" size={14}/>}>
+                Compartilhar
+              </Btn>
+            </div>
+
+            {/* separador */}
+            <div style={{ height: 1, background: MEVAM_COLORS.border, marginBottom: 14 }} />
+
+            {/* ações de saída */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* membros com equipe_id que não sejam o criador */}
+              {mostrarSairEscala && (
+                <Btn variant="danger" full
+                  icon={<span style={{ fontSize: 15 }}>🚪</span>}
+                  onClick={() => setConfirmando('sair')}>
+                  Sair da Escala
+                </Btn>
+              )}
+              {/* apenas admins podem excluir */}
+              {isAdmin && (
+                <Btn variant="danger" full
+                  icon={<Icon name="trash" size={14}/>}
+                  onClick={() => setConfirmando('excluir')}
+                  style={{ opacity: 0.85 }}>
+                  Excluir Escala
+                </Btn>
+              )}
+            </div>
           </div>
         )}
 
-        {/* confirmação: sair da escala */}
+        {/* confirmação: sair */}
         {confirmando === 'sair' && (
           <div style={{ padding: 16, borderRadius: 16, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.28)' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
               <span style={{ fontSize: 22, flexShrink: 0 }}>🚪</span>
               <div>
-                <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 700, marginBottom: 4 }}>
-                  Sair da Escala?
-                </div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 700, marginBottom: 4 }}>Sair da Escala?</div>
                 <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, lineHeight: 1.55 }}>
                   Você será removido de todos os cultos futuros. Você continua cadastrado no sistema.
                 </div>
@@ -770,15 +799,13 @@ function CodigoModal({ equipe, state, dispatch, usuario, onToast, onClose }) {
           </div>
         )}
 
-        {/* confirmação: excluir toda a escala */}
+        {/* confirmação: excluir */}
         {confirmando === 'excluir' && (
           <div style={{ padding: 16, borderRadius: 16, background: 'rgba(239,68,68,0.09)', border: '1px solid rgba(239,68,68,0.4)' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
               <span style={{ fontSize: 22, flexShrink: 0 }}>⚠️</span>
               <div>
-                <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.danger, fontWeight: 700, marginBottom: 4 }}>
-                  Atenção! Ação irreversível
-                </div>
+                <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.danger, fontWeight: 700, marginBottom: 4 }}>Atenção! Ação irreversível</div>
                 <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, lineHeight: 1.55 }}>
                   Todos os cultos e escalações serão <span style={{ color: MEVAM_COLORS.danger, fontWeight: 600 }}>permanentemente apagados</span>. Essa ação não pode ser desfeita.
                 </div>
@@ -795,6 +822,10 @@ function CodigoModal({ equipe, state, dispatch, usuario, onToast, onClose }) {
       </div>
     </div>
   );
+
+  // Portal → renderiza no document.body, fora do stacking context zIndex:1 do app
+  // (mesmo motivo do SlotPickerModal — tab bar zIndex:70 > container zIndex:1)
+  return ReactDOM.createPortal(conteudo, document.body);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -954,7 +985,7 @@ const navBtnStyle = { width: 30, height: 30, borderRadius: 8, background: MEVAM_
 // ════════════════════════════════════════════════════════════
 // ESCALA (home)
 // ════════════════════════════════════════════════════════════
-function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick }) {
+function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick, onExcluirEquipe, onSairEquipe }) {
   const [showCodigo, setShowCodigo] = useState(false);
   const [showCalendario, setShowCalendario] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -1089,12 +1120,12 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
           </div>
         ) : (
           cultosNaSemana.map((c) => (
-            <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} usuario={usuario} dispatch={dispatch} onToast={onToast} />
+            <CultoCard key={c.id} culto={c} state={state} usuarioId={usuario.id} usuario={usuario} dispatch={dispatch} onToast={onToast} equipe={equipe} />
           ))
         )}
       </div>
 
-      {showCodigo && <CodigoModal equipe={equipe} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setShowCodigo(false)} />}
+      {showCodigo && <CodigoModal equipe={equipe} state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} onClose={() => setShowCodigo(false)} onExcluirEquipe={onExcluirEquipe} onSairEquipe={onSairEquipe} />}
       {showCalendario && <CalendarEscalaModal state={state} onClose={() => setShowCalendario(false)} />}
     </div>
   );
@@ -1260,7 +1291,7 @@ function CultoHeroCard({ culto, usuarioId, state }) {
 // (fora da tela) em vez da viewport. O portal renderiza direto no
 // document.body, fora de qualquer ancestral com backdrop-filter.
 // ────────────────────────────────────────────────────────────
-function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
+function SlotPickerModal({ funcId, culto, state, equipe, onSelect, onClose }) {
   const FUNCOES = window.FUNCOES || {};
   const f = FUNCOES[funcId] || {};
   const funcColor = f.color || MEVAM_COLORS.accent;
@@ -1271,6 +1302,7 @@ function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
 
   const candidatos = state.membros.filter((m) =>
     m.status === 'ativo' &&
+    m.equipe_id === equipe?.id &&
     (m.func === funcId || (m.secundarias || []).includes(funcId)) &&
     !indispoIds.includes(m.id)
   );
@@ -1417,7 +1449,7 @@ function SlotPickerModal({ funcId, culto, state, onSelect, onClose }) {
 // ────────────────────────────────────────────────────────────
 // Card de culto
 // ────────────────────────────────────────────────────────────
-function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
+function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe }) {
   const [open, setOpen] = useState(false);
   const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
   const [salvando, setSalvando] = useState(false);
@@ -1577,6 +1609,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
           funcId={slotPicker.funcId}
           culto={culto}
           state={state}
+          equipe={equipe}
           onSelect={(membroId) => handleSave(slotPicker.funcId, membroId)}
           onClose={() => setSlotPicker(null)}
         />
@@ -1588,7 +1621,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast }) {
 // ════════════════════════════════════════════════════════════
 // DISPONIBILIDADE
 // ════════════════════════════════════════════════════════════
-function DisponibilidadeScreen({ state, dispatch, usuario, onToast }) {
+function DisponibilidadeScreen({ state, dispatch, usuario, onToast, equipe }) {
   const isAdmin = usuario.perfil === 'admin';
 
   // ── Visão membro (somente leitura) ──────────────────────
@@ -1647,17 +1680,17 @@ function DisponibilidadeScreen({ state, dispatch, usuario, onToast }) {
   }
 
   // ── Visão admin ──────────────────────────────────────────
-  return <AdminDisponibilidadeView state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} />;
+  return <AdminDisponibilidadeView state={state} dispatch={dispatch} usuario={usuario} onToast={onToast} equipe={equipe} />;
 }
 
-function AdminDisponibilidadeView({ state, dispatch, usuario, onToast }) {
+function AdminDisponibilidadeView({ state, dispatch, usuario, onToast, equipe }) {
   const [membroSel, setMembroSel] = useState(null);
   const [datas, setDatas] = useState(new Set());
   const [motivo, setMotivo] = useState('');
   const [limpando, setLimpando] = useState(false);
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
 
-  const membrosAtivos = state.membros.filter((m) => m.status === 'ativo');
+  const membrosAtivos = state.membros.filter((m) => m.status === 'ativo' && m.equipe_id === equipe?.id);
 
   const bloqueadasMembro = useMemo(() => {
     if (!membroSel) return new Set();
@@ -1894,7 +1927,9 @@ function MembrosScreen({ state, dispatch, usuario, equipe, onToast }) {
   const [filtro, setFiltro] = useState('todos');
   const [selecionado, setSelecionado] = useState(null);
 
-  const filtrados = state.membros.filter((m) => {
+  const membrosEquipe = state.membros.filter((m) => m.equipe_id === equipe?.id);
+
+  const filtrados = membrosEquipe.filter((m) => {
     if (filtro !== 'todos' && m.func !== filtro && !m.secundarias.includes(filtro)) return false;
     if (busca && !m.nome.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
@@ -1907,7 +1942,7 @@ function MembrosScreen({ state, dispatch, usuario, equipe, onToast }) {
           Equipe
         </h2>
         <div style={{ color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13, marginTop: 2 }}>
-          {state.membros.filter((m) => m.status === 'ativo').length} ativos · {state.membros.length} no total
+          {membrosEquipe.filter((m) => m.status === 'ativo').length} ativos · {membrosEquipe.length} no total
         </div>
       </div>
 
@@ -2243,9 +2278,10 @@ function GerenciarAdminsModal({ state, dispatch, equipe, usuario, onToast, onClo
   const [salvando, setSalvando] = React.useState(false);
 
   const adminPrincipalId = equipe?.criado_por;
-  const admins = state.membros.filter((m) => m.perfil === 'admin');
+  const admins = state.membros.filter((m) => m.perfil === 'admin' && m.equipe_id === equipe?.id);
   const membrosNaoAdmin = state.membros.filter((m) => {
     if (m.perfil === 'admin') return false;
+    if (m.equipe_id !== equipe?.id) return false;
     if (m.status !== 'ativo') return false;
     if (!busca.trim()) return true;
     return m.nome.toLowerCase().includes(busca.trim().toLowerCase());
@@ -2477,8 +2513,10 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
     }
   };
 
-  // métricas
-  const ativos = state.membros.filter((m) => m.status === 'ativo').length;
+  // métricas (apenas membros da equipe atual)
+  const membrosEquipe = state.membros.filter((m) => m.equipe_id === equipe?.id);
+  const equipeIds = new Set(membrosEquipe.map((m) => m.id));
+  const ativos = membrosEquipe.filter((m) => m.status === 'ativo').length;
   let conflitos = 0; let vazios = 0;
   state.cultos.forEach((c) => {
     const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
@@ -2516,7 +2554,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
 
       {/* stats grid */}
       <div style={{ padding: '14px 18px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Stat label="Membros ativos" value={ativos} accent={MEVAM_COLORS.accent} sub={`${state.membros.length} total`} />
+        <Stat label="Membros ativos" value={ativos} accent={MEVAM_COLORS.accent} sub={`${membrosEquipe.length} total`} />
         <Stat label="Cultos agendados" value={state.cultos.filter((c) => c.data >= new Date().toISOString().slice(0,10)).length} accent="#7C5CFF" sub="a partir de hoje" />
         <Stat label="Conflitos" value={conflitos} accent={conflitos > 0 ? MEVAM_COLORS.danger : MEVAM_COLORS.ok} sub={conflitos > 0 ? 'requer revisão' : 'tudo limpo'} />
         <Stat label="Slots vazios" value={vazios} accent={vazios > 0 ? '#F39C12' : MEVAM_COLORS.ok} sub={vazios > 0 ? 'precisam cobertura' : 'completo'} />
@@ -2668,10 +2706,10 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
       {isAdmin && (
         <div style={{ padding: '18px 18px 0' }}>
           <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="users" size={12}/> Membros da equipe ({state.membros.length})
+            <Icon name="users" size={12}/> Membros da equipe ({state.membros.filter((m) => m.equipe_id === equipe?.id).length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {state.membros.map((m) => {
+            {state.membros.filter((m) => m.equipe_id === equipe?.id).map((m) => {
               const isPrincipal = m.id === equipe?.criado_por;
               const isSelf = m.id === usuario.id;
               const podeRemover = !isPrincipal && !isSelf;
@@ -2728,8 +2766,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
         </div>
       )}
 
-      {/* conflitos */}
-      {conflitosLista.length > 0 && (
+      {/* conflitos — somente admin */}
+      {isAdmin && conflitosLista.length > 0 && (
         <div style={{ padding: '18px 18px 0' }}>
           <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon name="alert" size={12}/> Conflitos detectados ({conflitosLista.length})
@@ -2758,10 +2796,10 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
         </div>
       )}
 
-      {/* lembretes ativos */}
-      {(() => {
+      {/* lembretes ativos — somente admin */}
+      {isAdmin && (() => {
         const lembretes = Object.entries(state.indispo).sort().flatMap(([iso, entries]) =>
-          entries.filter((e) => e.lembrete).map((e) => ({ iso, ...e }))
+          entries.filter((e) => e.lembrete && equipeIds.has(e.membroId)).map((e) => ({ iso, ...e }))
         );
         if (lembretes.length === 0) return null;
         return (
@@ -2813,8 +2851,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
         />
       )}
 
-      {/* indisponibilidades registradas */}
-      <div style={{ padding: '18px 18px 28px' }}>
+      {/* indisponibilidades registradas — somente admin */}
+      {isAdmin && <div style={{ padding: '18px 18px 28px' }}>
         <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
           Indisponibilidades registradas
         </div>
@@ -2824,7 +2862,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {Object.entries(state.indispo).sort().slice(0, 8).flatMap(([iso, entries]) => entries.map((e, j) => {
+            {Object.entries(state.indispo).sort().slice(0, 8).flatMap(([iso, entries]) => entries.filter((e) => equipeIds.has(e.membroId)).map((e, j) => {
               const m = state.membros.find((x) => x.id === e.membroId);
               const d = formatBRDate(iso);
               return (
@@ -2840,7 +2878,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
             }))}
           </div>
         )}
-      </div>
+      </div>}
+
     </div>
   );
 }
