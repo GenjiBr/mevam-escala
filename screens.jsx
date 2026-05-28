@@ -1194,6 +1194,11 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
   const [editMusica, setEditMusica] = useState(null);
   const isAdmin = usuario?.perfil === 'admin';
 
+  useEffect(() => {
+    if (!equipe?.id) return;
+    sbGetMusicas(equipe.id).then((musicas) => dispatch({ type: 'set_musicas', musicas }));
+  }, [equipe?.id]);
+
   const musicas = useMemo(() =>
     (state.musicas || []).filter((m) => m.equipe_id === equipe?.id),
     [state.musicas, equipe?.id]
