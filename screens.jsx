@@ -77,14 +77,14 @@ function LoginScreen() {
   };
 
   const handleCriar = async () => {
-    if (!nome.trim()) { setErr('Informe seu nome completo'); return; }
+    if (nome.trim().length < 3) { setErr('Nome completo deve ter ao menos 3 caracteres'); return; }
     if (!email.trim()) { setErr('Informe seu e-mail'); return; }
     if (senha.length < 6) { setErr('Senha mínima de 6 caracteres'); return; }
     setLoading(true); setErr('');
     const { error } = await SB.auth.signUp({
       email: email.trim().toLowerCase(),
       password: senha,
-      options: { data: { nome: nome.trim() } },
+      options: { data: { full_name: nome.trim() } },
     });
     if (error) {
       setErr(error.message);
@@ -158,7 +158,7 @@ function LoginScreen() {
             {modo === 'criar' && (
               <Field label="Nome completo">
                 <input value={nome} onChange={(e) => { setNome(e.target.value); setErr(''); }}
-                  placeholder="Seu nome completo" style={inputStyle} autoComplete="name" />
+                  placeholder="Ex: João Silva" style={inputStyle} autoComplete="name" />
               </Field>
             )}
 
