@@ -25,19 +25,39 @@ const C = window.MEVAM_COLORS = {
 function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = null }) {
   const [imgErr, setImgErr] = React.useState(false);
   const [retryCount, setRetryCount] = React.useState(0);
+  const [blobSrc, setBlobSrc] = React.useState(null);
 
-  // Reseta erro e contador quando a URL de foto muda
-  React.useEffect(() => { setImgErr(false); setRetryCount(0); }, [foto]);
+  // Reseta tudo quando a URL de foto muda
+  React.useEffect(() => { setImgErr(false); setRetryCount(0); setBlobSrc(null); }, [foto]);
+
+  // Blob-load de URLs do Supabase Storage — evita bloqueio CORS em domínios externos
+  React.useEffect(() => {
+    if (!foto || !foto.includes('/storage/v1/object/public/') || !window.SB) return;
+    let revoked = false;
+    let objectUrl = null;
+    (async () => {
+      try {
+        const afterPublic = foto.split('/storage/v1/object/public/')[1].split('?')[0];
+        const slash = afterPublic.indexOf('/');
+        const bucket = afterPublic.slice(0, slash);
+        const fileName = decodeURIComponent(afterPublic.slice(slash + 1));
+        const { data, error } = await SB.storage.from(bucket).download(fileName);
+        if (error || !data || revoked) return;
+        objectUrl = URL.createObjectURL(data);
+        setBlobSrc(objectUrl);
+      } catch {}
+    })();
+    return () => { revoked = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [foto]);
 
   const fotoSrc = React.useMemo(() => {
     if (!foto) return null;
+    if (blobSrc) return blobSrc;
     if (retryCount === 0) {
-      // Primeiro carregamento: preservar ?t= da URL original (vem do sbUploadAvatar)
       return foto.includes('?') ? foto : `${foto}?t=0`;
     }
-    // Retry: novo timestamp para forçar novo request, evita cache
     return `${foto.split('?')[0]}?t=${Date.now()}`;
-  }, [foto, retryCount]);
+  }, [foto, retryCount, blobSrc]);
 
   const handleImgError = () => {
     if (retryCount < 2) {

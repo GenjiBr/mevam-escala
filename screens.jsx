@@ -3667,13 +3667,14 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
 
   const handleSelecionarAvatar = async (url) => {
     setUploadando(true);
+    setFoto(url);
     setShowAvatarPicker(false);
     try {
       await sbUpdateMembro(usuario.id, { foto: url });
       await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: url } });
-      setFoto(url);
       onToast('Foto atualizada!', 'ok');
     } catch (err) {
+      setFoto(membro.foto || null); // reverte em caso de erro
       onToast('Erro: ' + (err.message || 'Tente novamente'), 'err');
     } finally {
       setUploadando(false);
