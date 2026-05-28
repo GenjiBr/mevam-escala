@@ -1647,7 +1647,6 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
 // Lembrete da próxima escala do membro
 // ────────────────────────────────────────────────────────────
 function LembreteEscala({ culto, usuarioId, state }) {
-  // dias até o culto
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const [y, mo, d] = culto.data.split('-').map(Number);
   const dataServico = new Date(y, mo - 1, d);
@@ -1662,13 +1661,41 @@ function LembreteEscala({ culto, usuarioId, state }) {
 
   const data = formatBRDate(culto.data);
 
-  // urgência → cor e texto
-  let cor, textoTopo, emoji;
-  if (diff === 0)        { cor = '#EF4444'; textoTopo = 'Hoje é o dia!'; emoji = '🔥'; }
-  else if (diff === 1)   { cor = '#F39C12'; textoTopo = 'Amanhã você serve!'; emoji = '⚡'; }
-  else if (diff <= 3)    { cor = '#F39C12'; textoTopo = `Faltam ${diff} dias`; emoji = '⏰'; }
-  else if (diff <= 7)    { cor = '#5B7FFF'; textoTopo = `Faltam ${diff} dias`; emoji = '🔔'; }
-  else                   { cor = '#5B7FFF'; textoTopo = `Em ${diff} dias`; emoji = '📅'; }
+  // urgência → cor e emoji do ícone
+  let cor, emoji;
+  if (diff === 0)      { cor = '#EF4444'; emoji = '🔥'; }
+  else if (diff === 1) { cor = '#F39C12'; emoji = '⚡'; }
+  else if (diff <= 3)  { cor = '#F39C12'; emoji = '⏰'; }
+  else if (diff <= 7)  { cor = '#5B7FFF'; emoji = '🔔'; }
+  else                 { cor = '#5B7FFF'; emoji = '📅'; }
+
+  // mensagem personalizada pela função do membro
+  const membro = state.membros.find((m) => m.id === usuarioId);
+  const func = membro?.func || '';
+  const diaSemana = new Date(culto.data + 'T12:00:00').getDay();
+  const nomeDia = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'][diaSemana];
+  const ehDomingo = diaSemana === 0;
+
+  let msgEmoji, msgTexto;
+  if (func === 'ministro' || func === 'vocal_backing') {
+    msgEmoji = '🎤'; msgTexto = `Você vai cantar ${nomeDia}`;
+  } else if (func === 'guitarra' || func === 'baixo' || func === 'violao') {
+    msgEmoji = '🎸'; msgTexto = `Você toca ${nomeDia}`;
+  } else if (func === 'bateria') {
+    msgEmoji = '🥁'; msgTexto = `Você toca ${nomeDia}`;
+  } else if (func === 'teclado') {
+    msgEmoji = '🎹'; msgTexto = `Você toca ${nomeDia}`;
+  } else if (func === 'telao') {
+    msgEmoji = '🖥️'; msgTexto = `Você vai servir ${nomeDia}`;
+  } else if (func === 'live') {
+    msgEmoji = '🔴'; msgTexto = `Você vai servir ${nomeDia}`;
+  } else if (func === 'story') {
+    msgEmoji = '📱'; msgTexto = `Você vai servir ${nomeDia}`;
+  } else if (func === 'camera_fixa') {
+    msgEmoji = '🎥'; msgTexto = `Você vai servir ${nomeDia}`;
+  } else {
+    msgEmoji = '✨'; msgTexto = `Você serve ${nomeDia}`;
+  }
 
   return (
     <div style={{
@@ -1678,7 +1705,6 @@ function LembreteEscala({ culto, usuarioId, state }) {
       overflow: 'hidden',
       position: 'relative',
     }}>
-      {/* barra lateral colorida */}
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: cor, boxShadow: `0 0 18px ${cor}88` }} />
 
       <div style={{ padding: '14px 16px 14px 20px', display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -1688,7 +1714,6 @@ function LembreteEscala({ culto, usuarioId, state }) {
           width: 52, height: 52, borderRadius: 14, flexShrink: 0,
           background: cor + '22', border: `1px solid ${cor}44`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: 0,
         }}>
           <span style={{ fontSize: 20, lineHeight: 1 }}>{emoji}</span>
           {diff > 1 && (
@@ -1701,9 +1726,14 @@ function LembreteEscala({ culto, usuarioId, state }) {
 
         {/* conteúdo */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'Manrope', fontSize: 10.5, fontWeight: 700, color: cor, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 3 }}>
-            🔔 Lembrete · {textoTopo}
+          <div style={{ fontFamily: 'Manrope', fontSize: 12, fontWeight: 700, color: cor, marginBottom: 2 }}>
+            {msgEmoji} {msgTexto}
           </div>
+          {ehDomingo && (
+            <div style={{ fontFamily: 'Manrope', fontSize: 11, color: MEVAM_COLORS.muted, marginBottom: 4 }}>
+              🎵 Ensaio às 17h antes do culto
+            </div>
+          )}
           <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 16, color: MEVAM_COLORS.text, letterSpacing: -0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {culto.titulo}
           </div>
