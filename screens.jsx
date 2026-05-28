@@ -1947,6 +1947,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
   const [salvando, setSalvando] = useState(false);
   const [showMusicasSheet, setShowMusicasSheet] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const cultoMeta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
   const cultoMusicas = useMemo(() =>
@@ -1958,6 +1959,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   );
 
   const isAdmin = usuario?.perfil === 'admin';
+  const ehManual = (() => { const dow = new Date(culto.data + 'T00:00:00').getDay(); return dow === 5 || dow === 6; })();
   const data = formatBRDate(culto.data);
   const indispoIds = (state.indispo[culto.data] || []).map((i) => i.membroId);
 
@@ -1984,6 +1986,17 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
     try {
       await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
     } catch (e) { onToast?.('Erro: ' + e.message, 'err'); }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await sbDeleteCulto(culto.id);
+      dispatch({ type: 'set_cultos', cultos: state.cultos.filter(c => c.id !== culto.id) });
+      onToast?.('Culto excluído.', 'ok');
+    } catch (e) {
+      onToast?.('Erro ao excluir: ' + e.message, 'err');
+      setConfirmDelete(false);
+    }
   };
 
   // salva escalado no estado local + Supabase
@@ -2036,11 +2049,34 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
           {slotsVazios > 0 && conflitos === 0 && (
             <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.14)', padding: '3px 7px', borderRadius: 6 }}>{slotsVazios} vazio</span>
           )}
-          <span style={{ color: MEVAM_COLORS.mutedSoft, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
-            <Icon name="chevron" size={14}/>
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isAdmin && ehManual && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(v => !v); }}
+                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', borderRadius: 8, padding: '5px 7px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center' }}
+              >
+                <Icon name="trash" size={13}/>
+              </button>
+            )}
+            <span style={{ color: MEVAM_COLORS.mutedSoft, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
+              <Icon name="chevron" size={14}/>
+            </span>
+          </div>
         </div>
       </div>
+
+      {/* confirmação de exclusão */}
+      {confirmDelete && (
+        <div style={{ borderTop: '1px solid rgba(239,68,68,0.3)', padding: '12px 14px', background: 'rgba(239,68,68,0.04)' }}>
+          <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.muted, marginBottom: 10, lineHeight: 1.4 }}>
+            Excluir <strong style={{ color: MEVAM_COLORS.text }}>"{culto.titulo}"</strong>? Todos os dados serão perdidos.
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variant="ghost" full onClick={() => setConfirmDelete(false)}>Cancelar</Btn>
+            <Btn variant="danger" full icon={<Icon name="trash" size={12}/>} onClick={handleDelete}>Excluir</Btn>
+          </div>
+        </div>
+      )}
 
       {/* lista expandida de slots */}
       {open && (
