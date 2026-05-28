@@ -8,6 +8,13 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 window.SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+/* Reinicializa o cliente ao retornar ao foco — corrige fetches congelados em background */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    window.SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  }
+});
+
 /* ─────────────────────────────────────────────────
    Leitura
 ───────────────────────────────────────────────── */
@@ -209,13 +216,11 @@ window.sbGetMusicas = async (equipeId) => {
 };
 
 window.sbInsertMusica = async (musica) => {
-  const { data, error } = await SB.from('musicas').insert(musica).select().single();
+  const { error } = await SB.from('musicas').insert(musica);
   if (error) {
     console.error('[MEVAM] sbInsertMusica:', error.code, error.message);
     throw new Error(error.message);
   }
-  if (!data) throw new Error('Inserção retornou vazio — verifique as políticas RLS da tabela "musicas".');
-  return data;
 };
 
 window.sbUpdateMusica = async (id, updates) => {

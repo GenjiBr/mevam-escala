@@ -1111,14 +1111,15 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
       if (isEdit) {
         await dispatch({ type: 'update_musica', id: musica.id, updates: payload });
         onToast('Música atualizada!', 'ok');
-        onClose();
       } else {
-        if (!equipe?.id) throw new Error('Equipe não identificada — reabra o modal.');
-        const nova = await sbInsertMusica({ ...payload, equipe_id: equipe.id, adicionado_por: usuario.id });
-        dispatch({ type: 'add_musica', musica: nova });
+        const eqId = equipe?.id;
+        if (!eqId) throw new Error('Equipe não identificada — feche e reabra a tela de músicas.');
+        await sbInsertMusica({ ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null });
+        const novas = await sbGetMusicas(eqId);
+        dispatch({ type: 'set_musicas', musicas: novas });
         onToast('Música adicionada ao repertório!', 'ok');
-        onClose();
       }
+      onClose();
     } catch (e) {
       console.error('[MEVAM] handleSalvar música:', e);
       onToast('Erro: ' + (e.message || 'tente novamente'), 'err');
