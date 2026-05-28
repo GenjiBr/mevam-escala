@@ -1349,6 +1349,13 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   const [salvando, setSalvando] = useState(false);
 
   const isAdmin = usuario?.perfil === 'admin';
+
+  // Garante que state.musicas está populado ao abrir — necessário para membros comuns
+  useEffect(() => {
+    if (!equipe?.id) return;
+    sbGetMusicas(equipe.id).then((ms) => dispatch({ type: 'set_musicas', musicas: ms }));
+  }, []);
+
   const meta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
 
   const cultoMusicas = useMemo(() =>

@@ -235,5 +235,5 @@ window.sbDeleteMusica = async (id) => {
 
 window.sbUpdateCultoMusicas = async (cultoId, musicas) => {
   const { error } = await SB.from('cultos').update({ musicas }).eq('id', cultoId);
-  if (error) { console.error('sbUpdateCultoMusicas:', error.message); }
+  if (error) { console.error('sbUpdateCultoMusicas:', error.message); throw new Error(error.message); }
 };
