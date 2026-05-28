@@ -1416,8 +1416,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
     <div style={screenWrap}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <div style={{ display: 'flex', gap: 6 }}>
-          <Btn variant="ghost" icon={<Icon name="calendar" size={13}/>} onClick={() => setShowCalendario(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Calendário</Btn>
-          <Btn variant="ghost" icon={<Icon name="mic" size={13}/>} onClick={() => setShowMusicas(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Músicas</Btn>
+          <Btn variant="ghost" icon={<span style={{ fontSize: 14, lineHeight: 1 }}>♪</span>} onClick={() => setShowMusicas(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Músicas</Btn>
           {equipe && (
             <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Criar Escala</Btn>
           )}
@@ -1462,25 +1461,21 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
             </span>
           </button>
 
-          <div style={{
-            flex: 1, textAlign: 'center', padding: '7px 0',
-            background: MEVAM_COLORS.card, border: `1px solid ${weekOffset === 0 ? MEVAM_COLORS.accent + '66' : MEVAM_COLORS.border}`,
-            borderRadius: 10,
-          }}>
+          <button
+            onClick={() => setShowCalendario(true)}
+            style={{
+              flex: 1, textAlign: 'center', padding: '7px 0',
+              background: MEVAM_COLORS.card, border: `1px solid ${weekOffset === 0 ? MEVAM_COLORS.accent + '66' : MEVAM_COLORS.border}`,
+              borderRadius: 10, cursor: 'pointer',
+            }}
+          >
             <div style={{ fontFamily: 'Manrope', fontSize: 12, fontWeight: 700, color: weekOffset === 0 ? MEVAM_COLORS.accent : MEVAM_COLORS.text }}>
               {weekOffset === 0 ? '📅 Semana atual' : semanaLabel}
             </div>
-            {weekOffset !== 0 && (
-              <div style={{ fontFamily: 'Manrope', fontSize: 10.5, color: MEVAM_COLORS.muted, marginTop: 1 }}>
-                {semanaLabel}
-              </div>
-            )}
-            {weekOffset === 0 && (
-              <div style={{ fontFamily: 'Manrope', fontSize: 10.5, color: MEVAM_COLORS.muted, marginTop: 1 }}>
-                {semanaLabel}
-              </div>
-            )}
-          </div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 10.5, color: MEVAM_COLORS.muted, marginTop: 1 }}>
+              {semanaLabel}
+            </div>
+          </button>
 
           <button
             onClick={() => setWeekOffset((v) => v + 1)}
@@ -2011,7 +2006,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
               onClick={() => setShowMusicasSheet(true)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
-              <Icon name="mic" size={12}/> {cultoMusicas.length > 0 ? `Músicas (${cultoMusicas.length}/5)` : '+ Músicas do culto'}
+              {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
             </button>
           )}
         </div>
