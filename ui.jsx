@@ -30,17 +30,27 @@ function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = nul
   // Reseta tudo quando a URL de foto muda
   React.useEffect(() => { setImgErr(false); setRetryCount(0); setBlobSrc(null); }, [foto]);
 
-  // Blob-load de URLs do Supabase Storage — evita bloqueio CORS em domínios externos
+  // Blob-load de URLs e paths do Supabase Storage — evita bloqueio CORS em domínios externos
   React.useEffect(() => {
-    if (!foto || !foto.includes('/storage/v1/object/public/') || !window.SB) return;
+    if (!foto || !window.SB) return;
+    const isPath = foto.startsWith('path:');
+    const isStorageUrl = foto.includes('/storage/v1/object/public/');
+    if (!isPath && !isStorageUrl) return;
     let revoked = false;
     let objectUrl = null;
     (async () => {
       try {
-        const afterPublic = foto.split('/storage/v1/object/public/')[1].split('?')[0];
-        const slash = afterPublic.indexOf('/');
-        const bucket = afterPublic.slice(0, slash);
-        const fileName = decodeURIComponent(afterPublic.slice(slash + 1));
+        let bucket, fileName;
+        if (isPath) {
+          const storagePath = foto.replace('path:', '');
+          bucket = 'avatars-predefinidos';
+          fileName = storagePath;
+        } else {
+          const afterPublic = foto.split('/storage/v1/object/public/')[1].split('?')[0];
+          const slash = afterPublic.indexOf('/');
+          bucket = afterPublic.slice(0, slash);
+          fileName = decodeURIComponent(afterPublic.slice(slash + 1));
+        }
         const { data, error } = await SB.storage.from(bucket).download(fileName);
         if (error || !data || revoked) return;
         objectUrl = URL.createObjectURL(data);

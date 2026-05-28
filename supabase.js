@@ -237,6 +237,22 @@ window.sbUpdateCultoMusicas = async (cultoId, musicas) => {
   if (error) { console.error('sbUpdateCultoMusicas:', error.message); throw new Error(error.message); }
 };
 
+window.sbUploadAvatarPessoal = async (userId, arquivo) => {
+  const rawExt = (arquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const ext = rawExt || 'jpg';
+  const mimeMap = { png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+  const contentType = arquivo.type || mimeMap[ext] || 'image/jpeg';
+  // Usa auth.uid() para compatibilidade com RLS policies no Storage
+  const { data: { user } } = await SB.auth.getUser();
+  const authId = user?.id || userId;
+  const path = `usuarios/${authId}/avatar.${ext}`;
+  const { error } = await SB.storage
+    .from('avatars-predefinidos')
+    .upload(path, arquivo, { upsert: true, contentType });
+  if (error) throw new Error(error.message);
+  return `path:${path}`;
+};
+
 window.sbListAvataresPredefinidos = async () => {
   const { data, error } = await SB.storage
     .from('avatars-predefinidos')

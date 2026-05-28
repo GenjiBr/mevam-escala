@@ -3610,14 +3610,20 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
 }
 
 // Carrega imagem do Storage como blob para evitar bloqueio CORS no Vercel
+// Suporta URL pública e path: prefix (foto pessoal)
 function AvatarBlobImg({ url, style }) {
   const [src, setSrc] = React.useState(null);
   React.useEffect(() => {
     let objectUrl = null;
     (async () => {
       try {
-        const fileName = decodeURIComponent(url.split('/').pop().split('?')[0]);
-        const { data, error } = await SB.storage.from('avatars-predefinidos').download(fileName);
+        let storagePath;
+        if (url?.startsWith('path:')) {
+          storagePath = url.replace('path:', '');
+        } else {
+          storagePath = decodeURIComponent(url.split('/').pop().split('?')[0]);
+        }
+        const { data, error } = await SB.storage.from('avatars-predefinidos').download(storagePath);
         if (error || !data) { setSrc(url); return; }
         objectUrl = URL.createObjectURL(data);
         setSrc(objectUrl);
@@ -3644,6 +3650,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avataresList, setAvataresList] = useState([]);
   const [loadingAvatares, setLoadingAvatares] = useState(false);
+  const uploadInputRef = useRef(null);
 
   // ── Carrega foto ao abrir perfil e sincroniza quando state.membros muda ──
   useEffect(() => {
@@ -3676,6 +3683,26 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     } catch (err) {
       setFoto(membro.foto || null); // reverte em caso de erro
       onToast('Erro: ' + (err.message || 'Tente novamente'), 'err');
+    } finally {
+      setUploadando(false);
+    }
+  };
+
+  const handleUploadPessoal = async (e) => {
+    const arquivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!arquivo) return;
+    setUploadando(true);
+    setShowAvatarPicker(false);
+    try {
+      const pathKey = await sbUploadAvatarPessoal(usuario.id, arquivo);
+      setFoto(pathKey);
+      await sbUpdateMembro(usuario.id, { foto: pathKey });
+      await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: pathKey } });
+      onToast('Foto atualizada!', 'ok');
+    } catch (err) {
+      setFoto(membro.foto || null);
+      onToast('Erro ao enviar: ' + (err.message || 'Tente novamente'), 'err');
     } finally {
       setUploadando(false);
     }
@@ -3831,6 +3858,17 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                 ))}
               </div>
             )}
+
+            {/* input file oculto */}
+            <input ref={uploadInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadPessoal} />
+
+            <button
+              onClick={() => uploadInputRef.current?.click()}
+              disabled={uploadando}
+              style={{ width: '100%', padding: '13px 16px', borderRadius: 14, marginBottom: 8, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}55`, fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: '#A8BBFF', cursor: uploadando ? 'default' : 'pointer', opacity: uploadando ? 0.6 : 1 }}
+            >
+              {uploadando ? 'Enviando...' : '📁 Enviar minha foto'}
+            </button>
 
             <button
               onClick={() => setShowAvatarPicker(false)}
