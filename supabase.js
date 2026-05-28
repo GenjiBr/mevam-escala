@@ -209,8 +209,20 @@ window.sbGetMusicas = async (equipeId) => {
 };
 
 window.sbInsertMusica = async (musica) => {
-  const { data, error } = await SB.from('musicas').insert(musica).select().single();
-  if (error) { console.error('sbInsertMusica:', error.message); throw new Error(error.message); }
+  // timeout de 12s — evita botão travado se a tabela não existir ou rede cair
+  const withTimeout = (promise, ms, msg) =>
+    Promise.race([promise, new Promise((_, r) => setTimeout(() => r(new Error(msg)), ms))]);
+
+  const { data, error } = await withTimeout(
+    SB.from('musicas').insert(musica).select().single(),
+    12000,
+    'Tempo esgotado. Verifique se a tabela "musicas" existe no Supabase e tente novamente.'
+  );
+  if (error) {
+    console.error('[MEVAM] sbInsertMusica:', error.code, error.message);
+    throw new Error(error.message);
+  }
+  if (!data) throw new Error('Inserção retornou vazio — verifique as políticas RLS da tabela "musicas".');
   return data;
 };
 

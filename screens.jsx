@@ -1111,15 +1111,20 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
       if (isEdit) {
         await dispatch({ type: 'update_musica', id: musica.id, updates: payload });
         onToast('Música atualizada!', 'ok');
+        onClose();
       } else {
+        if (!equipe?.id) throw new Error('Equipe não identificada — reabra o modal.');
         const nova = await sbInsertMusica({ ...payload, equipe_id: equipe.id, adicionado_por: usuario.id });
         dispatch({ type: 'add_musica', musica: nova });
         onToast('Música adicionada ao repertório!', 'ok');
+        onClose();
       }
-      onClose();
     } catch (e) {
-      onToast('Erro ao salvar: ' + (e.message || 'tente novamente'), 'err');
-    } finally { setSalvando(false); }
+      console.error('[MEVAM] handleSalvar música:', e);
+      onToast('Erro: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return ReactDOM.createPortal(
