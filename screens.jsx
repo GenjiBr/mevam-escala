@@ -64,16 +64,19 @@ function LoginScreen() {
     if (!email.trim()) { setErr('Informe seu e-mail'); return; }
     if (!senha) { setErr('Informe a senha'); return; }
     setLoading(true); setErr('');
-    const { error } = await SB.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
-    if (error) {
-      const msgs = {
-        'Invalid login credentials': 'E-mail ou senha incorretos.',
-        'Email not confirmed': 'Confirme seu e-mail antes de entrar.',
-        'Too many requests': 'Muitas tentativas. Aguarde alguns minutos.',
-      };
-      setErr(msgs[error.message] || error.message);
+    try {
+      const { error } = await SB.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
+      if (error) {
+        const msgs = {
+          'Invalid login credentials': 'E-mail ou senha incorretos.',
+          'Email not confirmed': 'Confirme seu e-mail antes de entrar.',
+          'Too many requests': 'Muitas tentativas. Aguarde alguns minutos.',
+        };
+        setErr(msgs[error.message] || error.message);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCriar = async () => {
@@ -81,19 +84,22 @@ function LoginScreen() {
     if (!email.trim()) { setErr('Informe seu e-mail'); return; }
     if (senha.length < 6) { setErr('Senha mínima de 6 caracteres'); return; }
     setLoading(true); setErr('');
-    const { error } = await SB.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password: senha,
-      options: { data: { full_name: nome.trim() } },
-    });
-    if (error) {
-      setErr(error.message);
-    } else {
-      setInfo('Conta criada! Verifique seu e-mail para confirmar. Se não chegou, cheque a pasta de spam.');
-      setModo('entrar');
-      setSenha('');
+    try {
+      const { error } = await SB.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: senha,
+        options: { data: { full_name: nome.trim() } },
+      });
+      if (error) {
+        setErr(error.message);
+      } else {
+        setInfo('Conta criada! Verifique seu e-mail para confirmar. Se não chegou, cheque a pasta de spam.');
+        setModo('entrar');
+        setSenha('');
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -480,14 +486,16 @@ function SetupScreen({ onCriar, onEntrar, usuario, onToast, onLogout }) {
     if (!nome.trim()) { setErr('Dê um nome para a equipe'); return; }
     setLoading(true); setErr('');
     try { await onCriar(nome.trim()); }
-    catch (e) { setErr(e.message || 'Erro ao criar'); setLoading(false); }
+    catch (e) { setErr(e.message || 'Erro ao criar'); }
+    finally { setLoading(false); }
   };
 
   const handleEntrar = async () => {
     if (codigo.trim().length < 4) { setErr('Código muito curto'); return; }
     setLoading(true); setErr('');
     try { await onEntrar(codigo.trim()); }
-    catch (e) { setErr(e.message || 'Código inválido'); setLoading(false); }
+    catch (e) { setErr(e.message || 'Código inválido'); }
+    finally { setLoading(false); }
   };
 
   return (

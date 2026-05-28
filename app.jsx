@@ -207,7 +207,7 @@ function App() {
         await sbUpdateCultoMusicas(action.cultoId, action.musicas);
         break;
     }
-  }, []);
+  }, [equipe]);
 
   /* ── Gerar escala automática ──────────────────────────────────────────────
      semanas: número de semanas a cobrir (4=1mês, 13=3m, 26=6m, 52=1ano)
@@ -494,8 +494,8 @@ function App() {
 
   const handleLogout = async () => {
     try { await SB.auth.signOut(); } catch (e) { console.warn('signOut:', e.message); }
-    setUsuario(null);
     setEquipe(null);
+    setUsuario(null);
     setTab('escala');
   };
 
