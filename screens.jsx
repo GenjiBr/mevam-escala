@@ -3031,17 +3031,10 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   ];
   const semanas = parseInt(periodoKey, 10);
 
-  // verifica se há escala com membros já distribuídos
+  // confirma se há cultos futuros antes de sobrescrever
   const temEscalaVigente = React.useMemo(() => {
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const fmtL = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const inicio = new Date(hoje); inicio.setDate(hoje.getDate() - hoje.getDay());
-    const fim = new Date(inicio); fim.setDate(inicio.getDate() + 6);
-    const iI = fmtL(inicio); const iF = fmtL(fim);
-    return state.cultos.some((c) =>
-      c.data >= iI && c.data <= iF &&
-      Object.values(c.escalados).some((v) => v !== null)
-    );
+    const hoje = new Date().toISOString().slice(0, 10);
+    return state.cultos.some((c) => c.data >= hoje);
   }, [state.cultos]);
 
   const handleGerarClick = () => {
