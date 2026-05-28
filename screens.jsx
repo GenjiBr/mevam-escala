@@ -987,6 +987,13 @@ const navBtnStyle = { width: 30, height: 30, borderRadius: 8, background: MEVAM_
 // ════════════════════════════════════════════════════════════
 const TONS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// Suporta legado string[] e novo formato {id, tom}[]
+function normMusicas(musicas) {
+  return (musicas || []).map(item =>
+    typeof item === 'string' ? { id: item, tom: null } : item
+  );
+}
+
 function extractYouTubeId(url) {
   if (!url) return null;
   const m = String(url).match(/(?:v=|youtu\.be\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
@@ -1015,28 +1022,72 @@ function YTIcon({ size = 18 }) {
   );
 }
 
+// ── Seletor de tons (bottom sheet portal) ──
+function TomPicker({ tomAtual, tomOriginalMusica, onSelect, onClose }) {
+  return ReactDOM.createPortal(
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 400 }} />
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, zIndex: 401, background: '#0A1326', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: '20px 20px 40px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', animation: 'slideUp .25s cubic-bezier(.2,.9,.3,1)' }}>
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 16px' }} />
+        <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 16, color: MEVAM_COLORS.text, marginBottom: 14, letterSpacing: -0.3 }}>Selecionar tom</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {TONS.map(t => {
+            const isAtual = t === tomAtual;
+            const isOrig  = t === tomOriginalMusica;
+            return (
+              <button key={t} onClick={() => { onSelect(t); onClose(); }} style={{ width: 56, padding: '8px 0', borderRadius: 10, fontFamily: 'Manrope', fontWeight: 700, fontSize: 13, textAlign: 'center', cursor: 'pointer', background: isAtual ? MEVAM_COLORS.accent : isOrig ? 'rgba(243,156,18,0.14)' : MEVAM_COLORS.card, border: `1px solid ${isAtual ? MEVAM_COLORS.accent : isOrig ? '#F39C12' : MEVAM_COLORS.border}`, color: isAtual ? '#fff' : isOrig ? '#F39C12' : MEVAM_COLORS.muted }}>
+                {t}{isOrig ? ' ⭐' : ''}
+              </button>
+            );
+          })}
+        </div>
+        <button onClick={() => { onSelect(null); onClose(); }} style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          Restaurar original
+        </button>
+      </div>
+    </>,
+    document.body
+  );
+}
+
 // ── Card de música no repertório ──
-function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false }) {
+function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false, tomCulto, onTomChange }) {
   const [confirmDel, setConfirmDel] = useState(false);
-  const ytId  = extractYouTubeId(musica.url_youtube);
-  const grad  = musicGradient(musica.nome);
+  const [showTomPicker, setShowTomPicker] = useState(false);
+  const ytId = extractYouTubeId(musica.url_youtube);
+  const grad = musicGradient(musica.nome);
+
+  const temOverride = compact && tomCulto !== null && tomCulto !== undefined;
+  const canEdit = isAdmin && !!onTomChange;
+  const badgeStyle = (cor, bg) => ({ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: cor, background: bg, padding: '1px 6px', borderRadius: 4, border: 'none', cursor: canEdit ? 'pointer' : 'default' });
 
   if (compact) {
+    const openPicker = canEdit ? (e) => { e.stopPropagation(); setShowTomPicker(true); } : undefined;
+    const pencil = canEdit ? <span style={{ fontSize: 9 }}> ✏️</span> : null;
+    const badgeTom = temOverride
+      ? <button onClick={openPicker} style={badgeStyle(MEVAM_COLORS.accent, MEVAM_COLORS.accentSoft)}>Tom: {tomCulto}{pencil}</button>
+      : musica.tom_original
+        ? <button onClick={openPicker} style={badgeStyle('#F39C12', 'rgba(243,156,18,0.12)')}>Tom Original{pencil}</button>
+        : musica.tom
+          ? <button onClick={openPicker} style={badgeStyle(MEVAM_COLORS.accent, MEVAM_COLORS.accentSoft)}>• {musica.tom}{pencil}</button>
+          : null;
+
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 10 }}>
         <div style={{ width: 36, height: 36, borderRadius: 7, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>♪</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, color: MEVAM_COLORS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{musica.nome}</div>
-          <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
-            {musica.tom && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '1px 6px', borderRadius: 4 }}>• {musica.tom}</span>}
-            {musica.tom_original && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.12)', padding: '1px 6px', borderRadius: 4 }}>Tom Original</span>}
-          </div>
+          <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>{badgeTom}</div>
         </div>
         {ytId && <a href={`https://youtu.be/${ytId}`} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}><YTIcon size={16}/></a>}
+        {showTomPicker && <TomPicker tomAtual={temOverride ? tomCulto : musica.tom} tomOriginalMusica={musica.tom} onSelect={onTomChange} onClose={() => setShowTomPicker(false)} />}
       </div>
     );
   }
 
+  // ── full card (repertório) ──
+  const openPickerFull = canEdit ? (e) => { e.stopPropagation(); setShowTomPicker(true); } : undefined;
+  const pencilFull = canEdit ? <span style={{ fontSize: 9 }}> ✏️</span> : null;
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, padding: '12px 14px', background: MEVAM_COLORS.card, border: `1px solid ${confirmDel ? 'rgba(239,68,68,0.4)' : MEVAM_COLORS.border}`, borderRadius: confirmDel ? '14px 14px 0 0' : 14 }}>
@@ -1044,8 +1095,16 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'Manrope', fontSize: 13.5, fontWeight: 600, color: MEVAM_COLORS.text, lineHeight: 1.3 }}>{musica.nome}</div>
           <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
-            {musica.tom && <span style={{ fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 8px', borderRadius: 5 }}>• {musica.tom}</span>}
-            {musica.tom_original && <span style={{ fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.12)', padding: '2px 8px', borderRadius: 5 }}>Tom Original</span>}
+            {musica.tom && (
+              <button onClick={openPickerFull} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 8px', borderRadius: 5, border: 'none', cursor: canEdit ? 'pointer' : 'default' }}>
+                • {musica.tom}{pencilFull}
+              </button>
+            )}
+            {musica.tom_original && (
+              <button onClick={!musica.tom ? openPickerFull : undefined} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.12)', padding: '2px 8px', borderRadius: 5, border: 'none', cursor: (!musica.tom && canEdit) ? 'pointer' : 'default' }}>
+                Tom Original{!musica.tom && pencilFull}
+              </button>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
@@ -1080,6 +1139,7 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false }) {
           </div>
         </div>
       )}
+      {showTomPicker && <TomPicker tomAtual={musica.tom} tomOriginalMusica={null} onSelect={onTomChange} onClose={() => setShowTomPicker(false)} />}
     </div>
   );
 }
@@ -1214,6 +1274,12 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
     return musicas.filter((m) => m.nome.toLowerCase().includes(q) || (m.tom || '').toLowerCase().includes(q));
   }, [musicas, busca]);
 
+  const handleTomChangeRep = async (musicaId, novoTom) => {
+    try {
+      await dispatch({ type: 'update_musica', id: musicaId, updates: { tom: novoTom || null } });
+    } catch (e) { onToast('Erro: ' + e.message, 'err'); }
+  };
+
   const handleDelete = async (m) => {
     try {
       await dispatch({ type: 'remove_musica', id: m.id });
@@ -1264,6 +1330,7 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
             key={m.id} musica={m} isAdmin={isAdmin}
             onEdit={() => setEditMusica(m)}
             onDelete={() => handleDelete(m)}
+            onTomChange={isAdmin ? (t) => handleTomChangeRep(m.id, t) : undefined}
           />
         ))}
       </div>
@@ -1281,24 +1348,29 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   const [showAdd, setShowAdd]   = useState(false);
   const [salvando, setSalvando] = useState(false);
 
+  const meta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
+
   const cultoMusicas = useMemo(() =>
-    (culto.musicas || []).map((id) => (state.musicas || []).find((m) => m.id === id)).filter(Boolean),
-    [culto.musicas, state.musicas]
+    meta.map(item => {
+      const m = (state.musicas || []).find(m => m.id === item.id);
+      return m ? { musica: m, tomCulto: item.tom } : null;
+    }).filter(Boolean),
+    [meta, state.musicas]
   );
 
   const repertorio = useMemo(() => {
     const q = busca.toLowerCase();
-    const naEscala = new Set(culto.musicas || []);
+    const naEscala = new Set(meta.map(item => item.id));
     return (state.musicas || [])
       .filter((m) => m.equipe_id === equipe?.id && !naEscala.has(m.id))
       .filter((m) => !q || m.nome.toLowerCase().includes(q) || (m.tom || '').toLowerCase().includes(q));
-  }, [state.musicas, equipe?.id, culto.musicas, busca]);
+  }, [state.musicas, equipe?.id, meta, busca]);
 
   const addToCulto = async (musica) => {
-    if ((culto.musicas || []).length >= 5) { onToast('Máximo de 5 músicas por culto.', 'err'); return; }
+    if (meta.length >= 5) { onToast('Máximo de 5 músicas por culto.', 'err'); return; }
     if (salvando) return;
     setSalvando(true);
-    const novas = [...(culto.musicas || []), musica.id];
+    const novas = [...meta, { id: musica.id, tom: null }];
     try {
       await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
       setBusca('');
@@ -1307,7 +1379,14 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   };
 
   const removeFromCulto = async (musicaId) => {
-    const novas = (culto.musicas || []).filter((id) => id !== musicaId);
+    const novas = meta.filter(item => item.id !== musicaId);
+    try {
+      await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
+    } catch (e) { onToast('Erro: ' + e.message, 'err'); }
+  };
+
+  const handleTomChange = async (musicaId, novoTom) => {
+    const novas = meta.map(item => item.id === musicaId ? { ...item, tom: novoTom } : item);
     try {
       await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
     } catch (e) { onToast('Erro: ' + e.message, 'err'); }
@@ -1328,9 +1407,14 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
                 No culto ({cultoMusicas.length}/5)
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {cultoMusicas.map((m) => (
+                {cultoMusicas.map(({ musica: m, tomCulto }) => (
                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ flex: 1 }}><MusicaCard musica={m} isAdmin={false} compact /></div>
+                    <div style={{ flex: 1 }}>
+                      <MusicaCard musica={m} isAdmin compact
+                        tomCulto={tomCulto}
+                        onTomChange={(t) => handleTomChange(m.id, t)}
+                      />
+                    </div>
                     <button onClick={() => removeFromCulto(m.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.danger, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                       <Icon name="x" size={13}/>
                     </button>
@@ -1341,7 +1425,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
           )}
 
           {/* busca no repertório */}
-          {(culto.musicas || []).length < 5 && (
+          {meta.length < 5 && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 6 }}>
                 Adicionar do repertório
@@ -1854,9 +1938,13 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   const [salvando, setSalvando] = useState(false);
   const [showMusicasSheet, setShowMusicasSheet] = useState(false);
 
+  const cultoMeta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
   const cultoMusicas = useMemo(() =>
-    (culto.musicas || []).map((id) => (state.musicas || []).find((m) => m.id === id)).filter(Boolean),
-    [culto.musicas, state.musicas]
+    cultoMeta.map(item => {
+      const m = (state.musicas || []).find(m => m.id === item.id);
+      return m ? { musica: m, tomCulto: item.tom } : null;
+    }).filter(Boolean),
+    [cultoMeta, state.musicas]
   );
 
   const isAdmin = usuario?.perfil === 'admin';
@@ -1880,6 +1968,13 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
 
   const slotsVazios = cobertura.filter((x) => !x.membro).length;
   const meu = cobertura.some((x) => x.membro && x.membro.id === usuarioId);
+
+  const handleTomChange = async (musicaId, novoTom) => {
+    const novas = cultoMeta.map(item => item.id === musicaId ? { ...item, tom: novoTom } : item);
+    try {
+      await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
+    } catch (e) { onToast?.('Erro: ' + e.message, 'err'); }
+  };
 
   // salva escalado no estado local + Supabase
   const handleSave = async (funcId, membroId) => {
@@ -2013,7 +2108,12 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
           {cultoMusicas.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: isAdmin ? 8 : 0 }}>
-              {cultoMusicas.map((m) => <MusicaCard key={m.id} musica={m} isAdmin={false} compact />)}
+              {cultoMusicas.map(({ musica: m, tomCulto }) => (
+                <MusicaCard key={m.id} musica={m} isAdmin={isAdmin} compact
+                  tomCulto={tomCulto}
+                  onTomChange={isAdmin ? (t) => handleTomChange(m.id, t) : undefined}
+                />
+              ))}
             </div>
           )}
           {isAdmin && (
