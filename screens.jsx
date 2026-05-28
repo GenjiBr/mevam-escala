@@ -3517,6 +3517,8 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     if (membro.tom) setTomSel(membro.tom);
     if (membro.foto !== undefined) setFoto(membro.foto || null);
   }, [membro.id]);
+  // Sincroniza foto local sempre que o estado global do membro mudar
+  useEffect(() => { setFoto(membro.foto || null); }, [membro.foto]);
 
   // ── Upload direto do File — sem base64, sem crop, funciona em iOS/Android ──
   const handleFotoChange = async (e) => {
@@ -3543,7 +3545,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       // 4. Atualizar tela imediatamente
       const urlFinal = conf?.foto || urlPublica;
       setFoto(urlFinal);
-      dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: urlFinal } });
+      await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: urlFinal } });
       onToast('Foto atualizada com sucesso!', 'ok');
     } catch (err) {
       console.error('[MEVAM] Erro completo upload:', err);

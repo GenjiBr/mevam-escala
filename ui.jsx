@@ -24,14 +24,27 @@ const C = window.MEVAM_COLORS = {
 // ──────────────────────────────────────────────────────────
 function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = null }) {
   const [imgErr, setImgErr] = React.useState(false);
-  // Reseta erro e gera novo timestamp de cache-bust quando a URL muda
+  const [retryCount, setRetryCount] = React.useState(0);
+
+  // Reseta erro e contador quando a URL de foto muda
+  React.useEffect(() => { setImgErr(false); setRetryCount(0); }, [foto]);
+
   const fotoSrc = React.useMemo(() => {
     if (!foto) return null;
-    // Remove qualquer ?t= anterior e adiciona novo — garante sem duplicatas
     const base = foto.split('?')[0];
-    return base + '?t=' + Date.now();
-  }, [foto]);
-  React.useEffect(() => { setImgErr(false); }, [foto]);
+    // retryCount > 0 força novo timestamp (cache-bust ao tentar novamente)
+    return base + '?t=' + (retryCount > 0 ? Date.now() : '0');
+  }, [foto, retryCount]);
+
+  const handleImgError = () => {
+    if (retryCount < 2) {
+      setTimeout(() => setRetryCount(c => c + 1), 1500);
+    } else {
+      console.error('[MEVAM] Avatar falhou após retries:', fotoSrc);
+      setImgErr(true);
+    }
+  };
+
   const shadow = ring ? `0 0 0 2.5px ${tom}, 0 0 0 4.5px ${C.bgDeep}` : `0 2px 8px ${tom}33`;
   if (fotoSrc && !imgErr) {
     return (
@@ -42,10 +55,7 @@ function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = nul
         <img
           src={fotoSrc}
           alt={iniciais}
-          onError={(e) => {
-            console.error('[MEVAM] Avatar falhou ao carregar:', fotoSrc, e.type);
-            setImgErr(true);
-          }}
+          onError={handleImgError}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       </div>
