@@ -1186,7 +1186,7 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
         if (!eqId) throw new Error('Equipe não identificada — feche e reabra a tela de músicas.');
         await sbInsertMusica({ ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null });
         const novas = await sbGetMusicas(eqId);
-        dispatch({ type: 'set_musicas', musicas: novas });
+        await dispatch({ type: 'set_musicas', musicas: novas });
         onToast('Música adicionada ao repertório!', 'ok');
       }
       onClose();
@@ -1262,6 +1262,7 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
 function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
   const [busca, setBusca]         = useState('');
   const [showAdd, setShowAdd]     = useState(false);
+  const [addKey, setAddKey]       = useState(0);
   const [editMusica, setEditMusica] = useState(null);
   const isAdmin = usuario?.perfil === 'admin';
 
@@ -1304,7 +1305,7 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
           <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 20, color: MEVAM_COLORS.text, letterSpacing: -0.4 }}>Repertório</div>
           <div style={{ fontSize: 12, color: MEVAM_COLORS.muted, fontFamily: 'Manrope' }}>{musicas.length} música{musicas.length !== 1 ? 's' : ''}</div>
         </div>
-        <Btn variant="accent" icon={<Icon name="plus" size={13}/>} onClick={() => setShowAdd(true)} style={{ padding: '8px 14px', fontSize: 12.5 }}>
+        <Btn variant="accent" icon={<Icon name="plus" size={13}/>} onClick={() => { setAddKey(k => k + 1); setShowAdd(true); }} style={{ padding: '8px 14px', fontSize: 12.5 }}>
           Adicionar
         </Btn>
       </div>
@@ -1341,8 +1342,8 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
         ))}
       </div>
 
-      {showAdd && <AddMusicaModal equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} />}
-      {editMusica && <AddMusicaModal musica={editMusica} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
+      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} />}
+      {editMusica && <AddMusicaModal key={'edit-' + editMusica.id} musica={editMusica} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
     </div>,
     document.body
   );
@@ -1352,6 +1353,7 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
 function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, onClose }) {
   const [busca, setBusca]       = useState('');
   const [showAdd, setShowAdd]   = useState(false);
+  const [addKey, setAddKey]     = useState(0);
   const [salvando, setSalvando] = useState(false);
 
   const isAdmin = usuario?.perfil === 'admin';
@@ -1463,7 +1465,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
               {repertorio.length === 0 && busca && (
                 <div style={{ textAlign: 'center', padding: '12px 0', color: MEVAM_COLORS.mutedSoft, fontSize: 12.5, fontFamily: 'Manrope' }}>
                   Não encontrada.
-                  <button onClick={() => { setBusca(''); setShowAdd(true); }} style={{ display: 'block', margin: '8px auto 0', color: MEVAM_COLORS.accent, background: 'none', border: 'none', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+                  <button onClick={() => { setBusca(''); setAddKey(k => k + 1); setShowAdd(true); }} style={{ display: 'block', margin: '8px auto 0', color: MEVAM_COLORS.accent, background: 'none', border: 'none', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
                     + Adicionar ao repertório
                   </button>
                 </div>
@@ -1477,7 +1479,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
 
         <Btn variant="ghost" full onClick={onClose} style={{ marginTop: 14 }}>Fechar</Btn>
       </div>
-      {showAdd && <AddMusicaModal equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} />}
     </div>,
     document.body
   );
