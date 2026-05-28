@@ -1192,7 +1192,10 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
       } else {
         const eqId = equipe?.id;
         if (!eqId) throw new Error('Equipe não identificada — feche e reabra a tela de músicas.');
-        await sbInsertMusica({ ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null });
+        await Promise.race([
+          sbInsertMusica({ ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao salvar. Verifique sua conexão.')), 8000)),
+        ]);
         const novas = await sbGetMusicas(eqId);
         await dispatch({ type: 'set_musicas', musicas: novas });
         onToast('Música adicionada ao repertório!', 'ok');
