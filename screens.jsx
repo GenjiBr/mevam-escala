@@ -3622,9 +3622,9 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [foto, setFoto] = useState(membro.foto || null);
   const [uploadando, setUploadando] = useState(false);
   const [saveState, setSaveState] = useState('idle'); // 'idle' | 'saving' | 'saved'
-  const [showFotoMenu, setShowFotoMenu] = useState(false);
-  const fotoInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [avataresList, setAvataresList] = useState([]);
+  const [loadingAvatares, setLoadingAvatares] = useState(false);
 
   // ── Carrega foto ao abrir perfil e sincroniza quando state.membros muda ──
   useEffect(() => {
@@ -3637,31 +3637,24 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   // Sincroniza foto local sempre que o estado global do membro mudar
   useEffect(() => { setFoto(membro.foto || null); }, [membro.foto]);
 
-  // ── Upload direto do File — sem base64, sem crop, funciona em iOS/Android ──
-  const handleFotoChange = async (e) => {
-    const arquivo = e.target.files[0];
-    e.target.value = ''; // permite reselecionar o mesmo arquivo
-    if (!arquivo) return;
-    if (arquivo.size > 15 * 1024 * 1024) { onToast('Imagem muito grande (máx 15 MB)', 'warn'); return; }
+  // ── Abre seletor de avatares pré-definidos ──
+  const handleAbrirAvatarPicker = async () => {
+    setShowAvatarPicker(true);
+    setLoadingAvatares(true);
+    const lista = await sbListAvataresPredefinidos();
+    setAvataresList(lista);
+    setLoadingAvatares(false);
+  };
 
+  const handleSelecionarAvatar = async (url) => {
     setUploadando(true);
+    setShowAvatarPicker(false);
     try {
-      console.log('[MEVAM] Arquivo selecionado:', arquivo.name, `(${(arquivo.size/1024).toFixed(1)} KB, ${arquivo.type})`);
-
-      // 1. Upload para Supabase Storage
-      const urlPublica = await sbUploadAvatar(usuario.id, arquivo);
-
-      // 2. Salvar URL no banco
-      const { error: dbErr } = await SB.from('membros').update({ foto: urlPublica }).eq('id', usuario.id);
-      if (dbErr) { console.error('[MEVAM] Erro banco:', dbErr); throw dbErr; }
-
-      // 3. Atualizar tela imediatamente (URL já contém cache-bust do sbUploadAvatar)
-      const urlFinal = urlPublica;
-      setFoto(urlFinal);
-      await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: urlFinal } });
-      onToast('Foto atualizada com sucesso!', 'ok');
+      await sbUpdateMembro(usuario.id, { foto: url });
+      await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: url } });
+      setFoto(url);
+      onToast('Foto atualizada!', 'ok');
     } catch (err) {
-      console.error('[MEVAM] Erro completo upload:', err);
       onToast('Erro: ' + (err.message || 'Tente novamente'), 'err');
     } finally {
       setUploadando(false);
@@ -3723,15 +3716,10 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       {/* hero do perfil */}
       <div style={{ padding: '32px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, background: `radial-gradient(80% 50% at 50% 0%, ${tomSel}22 0%, transparent 70%)`, position: 'relative' }}>
 
-        {/* input galeria — sem capture */}
-        <input ref={fotoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFotoChange} />
-        {/* input câmera — capture direciona para câmera em Android/iOS */}
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFotoChange} />
-
         <div style={{ position: 'relative' }}>
-          {/* avatar clicável — abre menu de fonte da foto */}
+          {/* avatar clicável — abre seletor de avatares */}
           <button
-            onClick={() => setShowFotoMenu(true)}
+            onClick={handleAbrirAvatarPicker}
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: 999, display: 'block' }}>
             <Avatar iniciais={iniciais(nome) || '?'} tom={tomSel} size={90} ring foto={foto} />
             {/* overlay câmera / spinner */}
@@ -3746,7 +3734,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
 
           {/* badge 📷 câmera — borda inferior direita do círculo */}
           <button
-            onClick={(e) => { e.stopPropagation(); setShowFotoMenu(true); }}
+            onClick={(e) => { e.stopPropagation(); handleAbrirAvatarPicker(); }}
             style={{
               position: 'absolute', bottom: 2, right: 2,
               width: 28, height: 28, borderRadius: 999,
@@ -3785,86 +3773,51 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
         </div>
       </div>
 
-      {/* ── Bottom sheet: escolher fonte da foto ── */}
-      {showFotoMenu && ReactDOM.createPortal(
+      {/* ── Modal: seletor de avatares pré-definidos ── */}
+      {showAvatarPicker && ReactDOM.createPortal(
         <div
-          onClick={() => setShowFotoMenu(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 200,
-            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
-            display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s',
-          }}
+          onClick={() => setShowAvatarPicker(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 480, margin: '0 auto',
-              background: '#0A1326',
-              borderTopLeftRadius: 28, borderTopRightRadius: 28,
-              padding: '20px 18px 32px',
-              border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none',
-              animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)',
-            }}
+            style={{ width: '100%', maxWidth: 480, margin: '0 auto', background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: '20px 18px 36px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)' }}
           >
-            {/* handle */}
-            <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 20px' }} />
-
-            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, textAlign: 'center', marginBottom: 16, letterSpacing: -0.3 }}>
-              Foto de perfil
+            <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 18px' }} />
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, textAlign: 'center', marginBottom: 18, letterSpacing: -0.3 }}>
+              Escolher foto de perfil
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* Tirar foto */}
-              <button
-                onClick={() => { setShowFotoMenu(false); cameraInputRef.current?.click(); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 16px', borderRadius: 16,
-                  background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
-                  cursor: 'pointer', textAlign: 'left', width: '100%',
-                }}
-              >
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon name="camera" size={18} color="#A8BBFF" />
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.text }}>Tirar foto</div>
-                  <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 1 }}>Usar câmera do dispositivo</div>
-                </div>
-              </button>
+            {loadingAvatares ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 999, border: `3px solid ${MEVAM_COLORS.accent}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+              </div>
+            ) : avataresList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13 }}>
+                Nenhuma imagem encontrada.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
+                {avataresList.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSelecionarAvatar(url)}
+                    style={{ background: 'none', border: `2px solid ${MEVAM_COLORS.border}`, borderRadius: 14, padding: 4, cursor: 'pointer', transition: 'border-color .15s', aspectRatio: '1' }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = MEVAM_COLORS.accent}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = MEVAM_COLORS.border}
+                  >
+                    <img src={url} alt="" style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
+              </div>
+            )}
 
-              {/* Escolher da galeria */}
-              <button
-                onClick={() => { setShowFotoMenu(false); fotoInputRef.current?.click(); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 16px', borderRadius: 16,
-                  background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`,
-                  cursor: 'pointer', textAlign: 'left', width: '100%',
-                }}
-              >
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(124,92,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon name="image" size={18} color="#A8BBFF" />
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.text }}>Escolher da galeria</div>
-                  <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 1 }}>Selecionar foto existente</div>
-                </div>
-              </button>
-
-              {/* Cancelar */}
-              <button
-                onClick={() => setShowFotoMenu(false)}
-                style={{
-                  marginTop: 4, padding: '13px 16px', borderRadius: 14,
-                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`,
-                  fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.muted,
-                  cursor: 'pointer', width: '100%',
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
+            <button
+              onClick={() => setShowAvatarPicker(false)}
+              style={{ width: '100%', padding: '13px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`, fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.muted, cursor: 'pointer' }}
+            >
+              Cancelar
+            </button>
           </div>
         </div>,
         document.body

@@ -31,7 +31,11 @@ window.sbGetMembros = async () => {
 window.sbGetCultos = async () => {
   const { data, error } = await SB.from('cultos').select('*').order('data').order('horario');
   if (error) { console.error('sbGetCultos:', error.message); return []; }
-  return (data || []).map((c) => ({ ...c, escalados: c.escalados || {} }));
+  return (data || []).map((c) => ({
+    ...c,
+    titulo: c.titulo === 'Culto da Família' ? 'Celebração da Família' : c.titulo,
+    escalados: c.escalados || {},
+  }));
 };
 
 window.sbGetIndispo = async () => {
@@ -210,11 +214,12 @@ window.sbGetMusicas = async (equipeId) => {
 };
 
 window.sbInsertMusica = async (musica) => {
-  const { error } = await SB.from('musicas').insert(musica);
+  const { data, error } = await SB.from('musicas').insert(musica).select('*').single();
   if (error) {
     console.error('[MEVAM] sbInsertMusica:', error.code, error.message);
     throw new Error(error.message);
   }
+  return data;
 };
 
 window.sbUpdateMusica = async (id, updates) => {
@@ -230,4 +235,61 @@ window.sbDeleteMusica = async (id) => {
 window.sbUpdateCultoMusicas = async (cultoId, musicas) => {
   const { error } = await SB.from('cultos').update({ musicas }).eq('id', cultoId);
   if (error) { console.error('sbUpdateCultoMusicas:', error.message); throw new Error(error.message); }
+};
+
+window.sbListAvataresPredefinidos = async () => {
+  const { data, error } = await SB.storage
+    .from('avatars-predefinidos')
+    .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+  if (error) { console.error('[MEVAM] sbListAvataresPredefinidos:', error.message); return []; }
+  return (data || [])
+    .filter((f) => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name))
+    .map((f) => SB.storage.from('avatars-predefinidos').getPublicUrl(f.name).data.publicUrl);
+};
+
+/* ─────────────────────────────────────────────────
+   Historico administrativo
+───────────────────────────────────────────────── */
+const adminLogLocalKey = (equipeId) => `mevam_admin_logs_${equipeId || 'sem_equipe'}`;
+
+const readLocalAdminLogs = (equipeId) => {
+  try { return JSON.parse(localStorage.getItem(adminLogLocalKey(equipeId)) || '[]'); }
+  catch { return []; }
+};
+
+const writeLocalAdminLog = (log) => {
+  const logs = readLocalAdminLogs(log.equipe_id);
+  const novo = {
+    id: log.id || (crypto.randomUUID ? crypto.randomUUID() : `log_${Date.now()}`),
+    criado_em: log.criado_em || new Date().toISOString(),
+    ...log,
+  };
+  localStorage.setItem(adminLogLocalKey(log.equipe_id), JSON.stringify([novo, ...logs].slice(0, 80)));
+  return novo;
+};
+
+window.sbGetAdminLogs = async (equipeId) => {
+  if (!equipeId) return [];
+  const { data, error } = await SB.from('admin_logs')
+    .select('*')
+    .eq('equipe_id', equipeId)
+    .order('criado_em', { ascending: false })
+    .limit(50);
+  if (error) {
+    console.warn('[MEVAM] sbGetAdminLogs fallback local:', error.message);
+    return readLocalAdminLogs(equipeId);
+  }
+  const locais = readLocalAdminLogs(equipeId);
+  const byId = new Map([...(data || []), ...locais].filter((l) => l?.id).map((l) => [l.id, l]));
+  return Array.from(byId.values()).sort((a, b) => (b.criado_em || '').localeCompare(a.criado_em || '')).slice(0, 50);
+};
+
+window.sbAddAdminLog = async (log) => {
+  const payload = { criado_em: new Date().toISOString(), ...log };
+  const { data, error } = await SB.from('admin_logs').insert(payload).select('*').single();
+  if (error) {
+    console.warn('[MEVAM] sbAddAdminLog fallback local:', error.message);
+    return writeLocalAdminLog(payload);
+  }
+  return data;
 };
