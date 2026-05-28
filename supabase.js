@@ -241,10 +241,10 @@ window.sbListAvataresPredefinidos = async () => {
   const { data, error } = await SB.storage
     .from('avatars-predefinidos')
     .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
-  if (error) { console.error('[MEVAM] sbListAvataresPredefinidos:', error.message); return []; }
-  return (data || [])
+  if (error || !data) { console.error('[MEVAM] sbListAvataresPredefinidos:', error?.message); return []; }
+  return data
     .filter((f) => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name))
-    .map((f) => SB.storage.from('avatars-predefinidos').getPublicUrl(f.name).data.publicUrl);
+    .map((f) => `${SUPABASE_URL}/storage/v1/object/public/avatars-predefinidos/${encodeURIComponent(f.name)}`);
 };
 
 /* ─────────────────────────────────────────────────
