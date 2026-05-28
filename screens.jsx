@@ -1947,7 +1947,6 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
   const [salvando, setSalvando] = useState(false);
   const [showMusicasSheet, setShowMusicasSheet] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const cultoMeta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
   const cultoMusicas = useMemo(() =>
@@ -1959,7 +1958,6 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   );
 
   const isAdmin = usuario?.perfil === 'admin';
-  const ehManual = (() => { const dow = new Date(culto.data + 'T00:00:00').getDay(); return dow === 5 || dow === 6; })();
   const data = formatBRDate(culto.data);
   const indispoIds = (state.indispo[culto.data] || []).map((i) => i.membroId);
 
@@ -1986,17 +1984,6 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
     try {
       await dispatch({ type: 'update_culto_musicas', cultoId: culto.id, musicas: novas });
     } catch (e) { onToast?.('Erro: ' + e.message, 'err'); }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await sbDeleteCulto(culto.id);
-      dispatch({ type: 'set_cultos', cultos: state.cultos.filter(c => c.id !== culto.id) });
-      onToast?.('Culto excluído.', 'ok');
-    } catch (e) {
-      onToast?.('Erro ao excluir: ' + e.message, 'err');
-      setConfirmDelete(false);
-    }
   };
 
   // salva escalado no estado local + Supabase
@@ -2049,34 +2036,11 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
           {slotsVazios > 0 && conflitos === 0 && (
             <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: '#F39C12', background: 'rgba(243,156,18,0.14)', padding: '3px 7px', borderRadius: 6 }}>{slotsVazios} vazio</span>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {isAdmin && ehManual && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(v => !v); }}
-                style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', borderRadius: 8, padding: '5px 7px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center' }}
-              >
-                <Icon name="trash" size={13}/>
-              </button>
-            )}
-            <span style={{ color: MEVAM_COLORS.mutedSoft, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
-              <Icon name="chevron" size={14}/>
-            </span>
-          </div>
+          <span style={{ color: MEVAM_COLORS.mutedSoft, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
+            <Icon name="chevron" size={14}/>
+          </span>
         </div>
       </div>
-
-      {/* confirmação de exclusão */}
-      {confirmDelete && (
-        <div style={{ borderTop: '1px solid rgba(239,68,68,0.3)', padding: '12px 14px', background: 'rgba(239,68,68,0.04)' }}>
-          <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.muted, marginBottom: 10, lineHeight: 1.4 }}>
-            Excluir <strong style={{ color: MEVAM_COLORS.text }}>"{culto.titulo}"</strong>? Todos os dados serão perdidos.
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Btn variant="ghost" full onClick={() => setConfirmDelete(false)}>Cancelar</Btn>
-            <Btn variant="danger" full icon={<Icon name="trash" size={12}/>} onClick={handleDelete}>Excluir</Btn>
-          </div>
-        </div>
-      )}
 
       {/* lista expandida de slots */}
       {open && (
@@ -3042,6 +3006,18 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const isAdmin = usuario.perfil === 'admin';
   const [showAddCulto, setShowAddCulto] = React.useState(false);
   const [showAdmins, setShowAdmins] = React.useState(false);
+  const [confirmDeleteCultoId, setConfirmDeleteCultoId] = React.useState(null);
+
+  const handleDeleteCulto = async (cultoId) => {
+    try {
+      await sbDeleteCulto(cultoId);
+      dispatch({ type: 'set_cultos', cultos: state.cultos.filter(c => c.id !== cultoId) });
+      setConfirmDeleteCultoId(null);
+      onToast('Culto excluído.', 'ok');
+    } catch (e) {
+      onToast('Erro ao excluir: ' + e.message, 'err');
+    }
+  };
   const [showGerarConfirm, setShowGerarConfirm] = React.useState(false);
   const [removendoId, setRemovendoId] = React.useState(null);
   const [removendoLoad, setRemovendoLoad] = React.useState(false);
@@ -3259,17 +3235,37 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
                   const d = formatBRDate(c.data);
                   const dow = new Date(c.data + 'T00:00:00').getDay();
                   const tagColor = dow === 6 ? '#10B981' : '#F59E0B';
+                  const confirming = confirmDeleteCultoId === c.id;
                   return (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}` }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: tagColor + '22', border: `1px solid ${tagColor}44`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: tagColor, fontFamily: 'Manrope' }}>{dow === 6 ? 'Sáb' : 'Sex'}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: MEVAM_COLORS.text, fontFamily: 'Manrope', lineHeight: 1 }}>{d.dia}</span>
+                    <div key={c.id}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: confirming ? '14px 14px 0 0' : 14, background: MEVAM_COLORS.card, border: `1px solid ${confirming ? 'rgba(239,68,68,0.4)' : MEVAM_COLORS.border}` }}>
+                        <div style={{ width: 38, height: 38, borderRadius: 10, background: tagColor + '22', border: `1px solid ${tagColor}44`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: tagColor, fontFamily: 'Manrope' }}>{dow === 6 ? 'Sáb' : 'Sex'}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: MEVAM_COLORS.text, fontFamily: 'Manrope', lineHeight: 1 }}>{d.dia}</span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>{c.titulo}</div>
+                          <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>{d.diaSemana}, {d.dia} {d.mes} · {c.horario}</div>
+                        </div>
+                        <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: tagColor + '22', color: tagColor, fontFamily: 'Manrope', fontWeight: 700 }}>Manual</span>
+                        <button
+                          onClick={() => setConfirmDeleteCultoId(confirming ? null : c.id)}
+                          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                        >
+                          <Icon name="trash" size={13}/>
+                        </button>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>{c.titulo}</div>
-                        <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>{d.diaSemana}, {d.dia} {d.mes} · {c.horario}</div>
-                      </div>
-                      <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: tagColor + '22', color: tagColor, fontFamily: 'Manrope', fontWeight: 700 }}>Manual</span>
+                      {confirming && (
+                        <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.3)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
+                          <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.muted, marginBottom: 8, lineHeight: 1.4 }}>
+                            Excluir <strong style={{ color: MEVAM_COLORS.text }}>"{c.titulo}"</strong>? Todos os dados serão perdidos.
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Btn variant="ghost" full onClick={() => setConfirmDeleteCultoId(null)}>Cancelar</Btn>
+                            <Btn variant="danger" full icon={<Icon name="trash" size={12}/>} onClick={() => handleDeleteCulto(c.id)}>Excluir</Btn>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
