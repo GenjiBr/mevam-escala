@@ -161,8 +161,9 @@ window.sbUploadAvatar = async (userId, arquivo) => {
   if (error) throw new Error(error.message);
 
   const { data: { publicUrl } } = SB.storage.from('avatars').getPublicUrl(nome);
-  console.log('[MEVAM] URL pública:', publicUrl);
-  return publicUrl;
+  const urlComBust = `${publicUrl}?t=${Date.now()}`;
+  console.log('[MEVAM] URL pública:', urlComBust);
+  return urlComBust;
 };
 
 /* semeia os cultos iniciais (chamado pelo admin na primeira execução) */

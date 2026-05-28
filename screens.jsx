@@ -3538,12 +3538,8 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       const { error: dbErr } = await SB.from('membros').update({ foto: urlPublica }).eq('id', usuario.id);
       if (dbErr) { console.error('[MEVAM] Erro banco:', dbErr); throw dbErr; }
 
-      // 3. Confirmar que foi salvo
-      const { data: conf } = await SB.from('membros').select('foto').eq('id', usuario.id).single();
-      console.log('[MEVAM] Banco confirmado:', conf?.foto);
-
-      // 4. Atualizar tela imediatamente
-      const urlFinal = conf?.foto || urlPublica;
+      // 3. Atualizar tela imediatamente (URL já contém cache-bust do sbUploadAvatar)
+      const urlFinal = urlPublica;
       setFoto(urlFinal);
       await dispatch({ type: 'update_membro', id: usuario.id, updates: { foto: urlFinal } });
       onToast('Foto atualizada com sucesso!', 'ok');

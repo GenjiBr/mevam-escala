@@ -31,9 +31,12 @@ function Avatar({ iniciais, tom = '#5B7FFF', size = 38, ring = false, foto = nul
 
   const fotoSrc = React.useMemo(() => {
     if (!foto) return null;
-    const base = foto.split('?')[0];
-    // retryCount > 0 força novo timestamp (cache-bust ao tentar novamente)
-    return base + '?t=' + (retryCount > 0 ? Date.now() : '0');
+    if (retryCount === 0) {
+      // Primeiro carregamento: preservar ?t= da URL original (vem do sbUploadAvatar)
+      return foto.includes('?') ? foto : `${foto}?t=0`;
+    }
+    // Retry: novo timestamp para forçar novo request, evita cache
+    return `${foto.split('?')[0]}?t=${Date.now()}`;
   }, [foto, retryCount]);
 
   const handleImgError = () => {
