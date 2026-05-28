@@ -3609,6 +3609,25 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   );
 }
 
+// Carrega imagem do Storage como blob para evitar bloqueio CORS no Vercel
+function AvatarBlobImg({ url, style }) {
+  const [src, setSrc] = React.useState(null);
+  React.useEffect(() => {
+    let objectUrl = null;
+    (async () => {
+      try {
+        const fileName = decodeURIComponent(url.split('/').pop().split('?')[0]);
+        const { data, error } = await SB.storage.from('avatars-predefinidos').download(fileName);
+        if (error || !data) { setSrc(url); return; }
+        objectUrl = URL.createObjectURL(data);
+        setSrc(objectUrl);
+      } catch { setSrc(url); }
+    })();
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [url]);
+  return <img src={src || ''} alt="" style={{ ...style, opacity: src ? 1 : 0.35, transition: 'opacity .2s' }} />;
+}
+
 // ════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════
 // PERFIL
@@ -3806,7 +3825,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                     onMouseEnter={(e) => e.currentTarget.style.borderColor = MEVAM_COLORS.accent}
                     onMouseLeave={(e) => e.currentTarget.style.borderColor = MEVAM_COLORS.border}
                   >
-                    <img src={url} alt="" style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover', display: 'block' }} />
+                    <AvatarBlobImg url={url} style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover', display: 'block' }} />
                   </button>
                 ))}
               </div>
