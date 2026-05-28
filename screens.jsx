@@ -993,9 +993,17 @@ function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
-function ytThumb(url) {
-  const id = extractYouTubeId(url);
-  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+const MUSIC_GRADIENTS = [
+  'linear-gradient(135deg, #5B7FFF, #8B5CF6)',
+  'linear-gradient(135deg, #F59E0B, #EF4444)',
+  'linear-gradient(135deg, #10B981, #3B82F6)',
+  'linear-gradient(135deg, #EC4899, #8B5CF6)',
+  'linear-gradient(135deg, #F97316, #EF4444)',
+  'linear-gradient(135deg, #06B6D4, #3B82F6)',
+];
+function musicGradient(nome) {
+  const sum = (nome || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return MUSIC_GRADIENTS[sum % MUSIC_GRADIENTS.length];
 }
 
 // ── Ícone YouTube SVG inline ──
@@ -1010,13 +1018,13 @@ function YTIcon({ size = 18 }) {
 // ── Card de música no repertório ──
 function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false }) {
   const [confirmDel, setConfirmDel] = useState(false);
-  const thumb = ytThumb(musica.url_youtube);
   const ytId  = extractYouTubeId(musica.url_youtube);
+  const grad  = musicGradient(musica.nome);
 
   if (compact) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 10 }}>
-        {thumb && <img src={thumb} alt="" style={{ width: 40, height: 30, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }} />}
+        <div style={{ width: 36, height: 36, borderRadius: 7, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>♪</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, color: MEVAM_COLORS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{musica.nome}</div>
           <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
@@ -1032,10 +1040,7 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, padding: '12px 14px', background: MEVAM_COLORS.card, border: `1px solid ${confirmDel ? 'rgba(239,68,68,0.4)' : MEVAM_COLORS.border}`, borderRadius: confirmDel ? '14px 14px 0 0' : 14 }}>
-        {thumb
-          ? <img src={thumb} alt="" style={{ width: 64, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
-          : <div style={{ width: 64, height: 48, borderRadius: 8, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#A8BBFF', fontSize: 22 }}>🎵</div>
-        }
+        <div style={{ width: 48, height: 48, borderRadius: 8, background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 22 }}>♪</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'Manrope', fontSize: 13.5, fontWeight: 600, color: MEVAM_COLORS.text, lineHeight: 1.3 }}>{musica.nome}</div>
           <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
@@ -1149,7 +1154,6 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
               {buscando ? '...' : 'Buscar'}
             </button>
           </div>
-          {ytThumb(url) && <img src={ytThumb(url)} alt="" style={{ marginTop: 8, width: '100%', height: 120, objectFit: 'cover', borderRadius: 10 }} />}
         </div>
 
         {/* Nome */}
