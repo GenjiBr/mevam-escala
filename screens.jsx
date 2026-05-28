@@ -3018,6 +3018,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
       onToast('Erro ao excluir: ' + e.message, 'err');
     }
   };
+  const [showMembros, setShowMembros] = React.useState(false);
   const [showGerarConfirm, setShowGerarConfirm] = React.useState(false);
   const [removendoId, setRemovendoId] = React.useState(null);
   const [removendoLoad, setRemovendoLoad] = React.useState(false);
@@ -3100,10 +3101,95 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
 
       {/* stats grid */}
       <div style={{ padding: '14px 18px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Stat label="Membros ativos" value={ativos} accent={MEVAM_COLORS.accent} sub={`${membrosEquipe.length} total`} />
+        {/* card "Membros ativos" — clicável */}
+        <button
+          aria-expanded={showMembros}
+          aria-controls="painel-membros"
+          onClick={() => setShowMembros(v => !v)}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setShowMembros(v => !v)}
+          style={{
+            textAlign: 'left', width: '100%', fontFamily: 'inherit',
+            position: 'relative', borderRadius: 18, padding: 14, cursor: 'pointer',
+            background: showMembros ? `${MEVAM_COLORS.accent}18` : MEVAM_COLORS.card,
+            border: `1px solid ${showMembros ? MEVAM_COLORS.accent + '90' : MEVAM_COLORS.border}`,
+            backdropFilter: 'blur(10px)', overflow: 'hidden',
+            transition: 'background .2s, border-color .2s',
+          }}
+        >
+          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 3, background: MEVAM_COLORS.accent, borderRadius: '18px 0 0 18px' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 10, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6 }}>Membros ativos</div>
+            <span style={{ color: showMembros ? MEVAM_COLORS.accent : MEVAM_COLORS.mutedSoft, display: 'flex', transform: showMembros ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
+              <Icon name="chevron" size={11}/>
+            </span>
+          </div>
+          <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 30, color: MEVAM_COLORS.text, lineHeight: 1, marginTop: 6, letterSpacing: -1 }}>{ativos}</div>
+          <div style={{ fontSize: 11, color: showMembros ? MEVAM_COLORS.accent : MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 4 }}>
+            {showMembros ? 'ocultar lista' : 'ver membros'}
+          </div>
+        </button>
         <Stat label="Cultos agendados" value={state.cultos.filter((c) => c.data >= new Date().toISOString().slice(0,10)).length} accent="#7C5CFF" sub="a partir de hoje" />
         <Stat label="Conflitos" value={conflitos} accent={conflitos > 0 ? MEVAM_COLORS.danger : MEVAM_COLORS.ok} sub={conflitos > 0 ? 'requer revisão' : 'tudo limpo'} />
         <Stat label="Slots vazios" value={vazios} accent={vazios > 0 ? '#F39C12' : MEVAM_COLORS.ok} sub={vazios > 0 ? 'precisam cobertura' : 'completo'} />
+      </div>
+
+      {/* painel expansível de membros */}
+      <div
+        id="painel-membros"
+        style={{
+          overflow: 'hidden',
+          maxHeight: showMembros ? '2000px' : '0',
+          transition: 'max-height 0.35s ease',
+        }}
+      >
+        <div style={{ padding: '14px 18px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {state.membros.filter((m) => m.equipe_id === equipe?.id).map((m) => {
+            const isPrincipal = m.id === equipe?.criado_por;
+            const isSelf = m.id === usuario.id;
+            const podeRemover = !isPrincipal && !isSelf;
+            const isRemovendoEste = removendoId === m.id;
+            return (
+              <div key={m.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: MEVAM_COLORS.card, border: `1px solid ${isRemovendoEste ? 'rgba(239,68,68,0.35)' : MEVAM_COLORS.border}`, borderRadius: isRemovendoEste ? '14px 14px 0 0' : 14 }}>
+                  <Avatar iniciais={m.iniciais} tom={m.tom} size={36} foto={m.foto} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>
+                      {m.nome}{isSelf ? ' (você)' : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, marginTop: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <FuncBadge funcId={m.func} />
+                      {m.perfil === 'admin' && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Admin</span>}
+                      {isPrincipal && <span style={{ fontSize: 10, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>· criador</span>}
+                    </div>
+                  </div>
+                  {podeRemover && !isRemovendoEste && (
+                    <button onClick={() => setRemovendoId(m.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center', flexShrink: 0 }} title="Remover da equipe">
+                      <Icon name="trash" size={14}/>
+                    </button>
+                  )}
+                  {podeRemover && isRemovendoEste && (
+                    <button onClick={() => setRemovendoId(null)} style={{ background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                      <Icon name="x" size={14}/>
+                    </button>
+                  )}
+                </div>
+                {isRemovendoEste && (
+                  <div style={{ padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
+                    <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.text, lineHeight: 1.5, marginBottom: 10 }}>
+                      Remover <span style={{ color: MEVAM_COLORS.danger, fontWeight: 700 }}>{m.nome}</span> da equipe? Essa ação não pode ser desfeita.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Btn variant="ghost" full onClick={() => setRemovendoId(null)}>Cancelar</Btn>
+                      <Btn variant="danger" full icon={<Icon name="trash" size={13}/>} onClick={() => confirmarRemocaoAdmin(m)}>
+                        {removendoLoad ? 'Removendo…' : 'Confirmar'}
+                      </Btn>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* auto-gerador — somente admin / info para membros */}
@@ -3268,69 +3354,6 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
         </div>
       )}
 
-      {/* membros da equipe — remoção */}
-      {isAdmin && (
-        <div style={{ padding: '18px 18px 0' }}>
-          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="users" size={12}/> Membros da equipe ({state.membros.filter((m) => m.equipe_id === equipe?.id).length})
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {state.membros.filter((m) => m.equipe_id === equipe?.id).map((m) => {
-              const isPrincipal = m.id === equipe?.criado_por;
-              const isSelf = m.id === usuario.id;
-              const podeRemover = !isPrincipal && !isSelf;
-              const isRemovendoEste = removendoId === m.id;
-              return (
-                <div key={m.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: MEVAM_COLORS.card, border: `1px solid ${isRemovendoEste ? 'rgba(239,68,68,0.35)' : MEVAM_COLORS.border}`, borderRadius: isRemovendoEste ? '14px 14px 0 0' : 14 }}>
-                    <Avatar iniciais={m.iniciais} tom={m.tom} size={36} foto={m.foto} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.text, fontWeight: 600 }}>
-                        {m.nome}{isSelf ? ' (você)' : ''}
-                      </div>
-                      <div style={{ display: 'flex', gap: 5, marginTop: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <FuncBadge funcId={m.func} />
-                        {m.perfil === 'admin' && <span style={{ fontSize: 10, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.accent, background: MEVAM_COLORS.accentSoft, padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Admin</span>}
-                        {isPrincipal && <span style={{ fontSize: 10, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope' }}>· criador</span>}
-                      </div>
-                    </div>
-                    {podeRemover && !isRemovendoEste && (
-                      <button
-                        onClick={() => setRemovendoId(m.id)}
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.danger, display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                        title="Remover da equipe"
-                      >
-                        <Icon name="trash" size={14}/>
-                      </button>
-                    )}
-                    {podeRemover && isRemovendoEste && (
-                      <button
-                        onClick={() => setRemovendoId(null)}
-                        style={{ background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 9, padding: '7px 9px', cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                      >
-                        <Icon name="x" size={14}/>
-                      </button>
-                    )}
-                  </div>
-                  {isRemovendoEste && (
-                    <div style={{ padding: '12px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', borderTop: 'none', borderRadius: '0 0 14px 14px' }}>
-                      <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.text, lineHeight: 1.5, marginBottom: 10 }}>
-                        Remover <span style={{ color: MEVAM_COLORS.danger, fontWeight: 700 }}>{m.nome}</span> da equipe? Essa ação não pode ser desfeita.
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <Btn variant="ghost" full onClick={() => setRemovendoId(null)}>Cancelar</Btn>
-                        <Btn variant="danger" full icon={<Icon name="trash" size={13}/>} onClick={() => confirmarRemocaoAdmin(m)}>
-                          {removendoLoad ? 'Removendo…' : 'Confirmar'}
-                        </Btn>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* conflitos — somente admin */}
       {isAdmin && conflitosLista.length > 0 && (
