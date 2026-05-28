@@ -1348,6 +1348,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   const [showAdd, setShowAdd]   = useState(false);
   const [salvando, setSalvando] = useState(false);
 
+  const isAdmin = usuario?.perfil === 'admin';
   const meta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
 
   const cultoMusicas = useMemo(() =>
@@ -1410,14 +1411,16 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
                 {cultoMusicas.map(({ musica: m, tomCulto }) => (
                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ flex: 1 }}>
-                      <MusicaCard musica={m} isAdmin compact
+                      <MusicaCard musica={m} isAdmin={isAdmin} compact
                         tomCulto={tomCulto}
-                        onTomChange={(t) => handleTomChange(m.id, t)}
+                        onTomChange={isAdmin ? (t) => handleTomChange(m.id, t) : undefined}
                       />
                     </div>
-                    <button onClick={() => removeFromCulto(m.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.danger, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                      <Icon name="x" size={13}/>
-                    </button>
+                    {isAdmin && (
+                      <button onClick={() => removeFromCulto(m.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.danger, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        <Icon name="x" size={13}/>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1425,7 +1428,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
           )}
 
           {/* busca no repertório */}
-          {meta.length < 5 && (
+          {isAdmin && meta.length < 5 && (
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: MEVAM_COLORS.muted, textTransform: 'uppercase', letterSpacing: 0.8, fontFamily: 'Manrope', marginBottom: 6 }}>
                 Adicionar do repertório
@@ -2107,7 +2110,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
       {(cultoMusicas.length > 0 || isAdmin) && (
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
           {cultoMusicas.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: isAdmin ? 8 : 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
               {cultoMusicas.map(({ musica: m, tomCulto }) => (
                 <MusicaCard key={m.id} musica={m} isAdmin={isAdmin} compact
                   tomCulto={tomCulto}
@@ -2116,14 +2119,12 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
               ))}
             </div>
           )}
-          {isAdmin && (
-            <button
-              onClick={() => setShowMusicasSheet(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-            >
-              {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
-            </button>
-          )}
+          <button
+            onClick={() => setShowMusicasSheet(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
+          </button>
         </div>
       )}
 
