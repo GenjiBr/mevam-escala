@@ -368,8 +368,14 @@ function App() {
       }
       if (session?.user) {
         const emailUsuario = session.user.email;
-        const partes = (emailUsuario || '').split('@')[0].replace(/[._-]/g, ' ').split(' ');
-        const nomeAuto = partes.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ').trim();
+        const fullName = session.user.user_metadata?.full_name || '';
+        const nomeAuto = fullName.trim() ||
+          (emailUsuario || '').split('@')[0]
+            .replace(/[._-]/g, ' ')
+            .split(' ')
+            .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+            .join(' ')
+            .trim();
         const idFallback = 'u_' + session.user.id.replace(/-/g, '').slice(0, 10);
 
         // Tenta encontrar o membro (com até 3 tentativas — aguarda trigger do Supabase)
