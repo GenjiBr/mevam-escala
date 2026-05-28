@@ -1171,6 +1171,11 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
   const handleSalvar = async () => {
     if (!nome.trim()) { onToast('Informe o nome da música.', 'err'); return; }
     setSalvando(true);
+    // Fail-safe: desbloqueia o botão após 20s mesmo que o async trave
+    const safety = setTimeout(() => {
+      setSalvando(false);
+      onToast('Operação demorou demais. Tente novamente.', 'err');
+    }, 20000);
     try {
       const payload = { nome: nome.trim(), url_youtube: url.trim() || null, tom: tom || null, tom_original: tomOriginal };
       if (isEdit) {
@@ -1189,6 +1194,7 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
       console.error('[MEVAM] handleSalvar música:', e);
       onToast('Erro: ' + (e.message || 'tente novamente'), 'err');
     } finally {
+      clearTimeout(safety);
       setSalvando(false);
     }
   };

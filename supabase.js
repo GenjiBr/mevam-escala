@@ -8,13 +8,6 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 window.SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-/* Reinicializa o cliente ao retornar ao foco — corrige fetches congelados em background */
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    window.SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  }
-});
-
 /* ─────────────────────────────────────────────────
    Leitura
 ───────────────────────────────────────────────── */
