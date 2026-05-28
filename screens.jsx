@@ -2106,27 +2106,25 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
         </div>
       )}
 
-      {/* ── Músicas do culto ── */}
-      {(cultoMusicas.length > 0 || isAdmin) && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
-          {cultoMusicas.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
-              {cultoMusicas.map(({ musica: m, tomCulto }) => (
-                <MusicaCard key={m.id} musica={m} isAdmin={isAdmin} compact
-                  tomCulto={tomCulto}
-                  onTomChange={isAdmin ? (t) => handleTomChange(m.id, t) : undefined}
-                />
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => setShowMusicasSheet(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-          >
-            {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
-          </button>
-        </div>
-      )}
+      {/* ── Músicas do culto — visível para todos ── */}
+      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
+        {cultoMusicas.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
+            {cultoMusicas.map(({ musica: m, tomCulto }) => (
+              <MusicaCard key={m.id} musica={m} isAdmin={isAdmin} compact
+                tomCulto={tomCulto}
+                onTomChange={isAdmin ? (t) => handleTomChange(m.id, t) : undefined}
+              />
+            ))}
+          </div>
+        )}
+        <button
+          onClick={() => setShowMusicasSheet(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+        >
+          {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
+        </button>
+      </div>
 
       {/* modal de seleção (portal → document.body) */}
       {slotPicker && (
