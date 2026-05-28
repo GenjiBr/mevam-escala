@@ -1192,12 +1192,11 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
       } else {
         const eqId = equipe?.id;
         if (!eqId) throw new Error('Equipe não identificada — feche e reabra a tela de músicas.');
-        await Promise.race([
+        const musicaCriada = await Promise.race([
           sbInsertMusica({ ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao salvar. Verifique sua conexão.')), 8000)),
         ]);
-        const novas = await sbGetMusicas(eqId);
-        await dispatch({ type: 'set_musicas', musicas: novas });
+        await dispatch({ type: 'add_musica', musica: musicaCriada || { ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null } });
         onToast('Música adicionada ao repertório!', 'ok');
       }
       onClose();
@@ -1279,7 +1278,7 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
 
   useEffect(() => {
     if (!equipe?.id) return;
-    sbGetMusicas(equipe.id).then((musicas) => dispatch({ type: 'set_musicas', musicas }));
+    sbGetMusicas(equipe.id).then((musicas) => dispatch({ type: 'merge_musicas', musicas }));
   }, [equipe?.id]);
 
   const musicas = useMemo(() =>
@@ -1372,7 +1371,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   // Garante que state.musicas está populado ao abrir — necessário para membros comuns
   useEffect(() => {
     if (!equipe?.id) return;
-    sbGetMusicas(equipe.id).then((ms) => dispatch({ type: 'set_musicas', musicas: ms }));
+    sbGetMusicas(equipe.id).then((ms) => dispatch({ type: 'merge_musicas', musicas: ms }));
   }, []);
 
   const meta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
@@ -1544,7 +1543,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
     <div style={screenWrap}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <div style={{ display: 'flex', gap: 6 }}>
-          <Btn variant="ghost" icon={<span style={{ fontSize: 14, lineHeight: 1 }}>♪</span>} onClick={() => setShowMusicas(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Músicas</Btn>
+          <Btn variant="ghost" icon={<span style={{ fontSize: 14, lineHeight: 1 }}>♪</span>} onClick={() => setShowMusicas(true)} style={{ padding: '7px 8px', fontSize: 10.5, gap: 4 }}>Repertório</Btn>
           {equipe && (
             <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Convidar</Btn>
           )}
@@ -3055,6 +3054,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const isAdmin = usuario.perfil === 'admin';
   const [showAddCulto, setShowAddCulto] = React.useState(false);
   const [showAdmins, setShowAdmins] = React.useState(false);
+  const [showHistorico, setShowHistorico] = React.useState(false);
   const [confirmDeleteCultoId, setConfirmDeleteCultoId] = React.useState(null);
 
   const handleDeleteCulto = async (cultoId) => {
@@ -3137,11 +3137,49 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
     });
   });
 
+  const adminLogs = (state.adminLogs || []).slice(0, 8);
+  const logMeta = {
+    add_indispo: { label: 'Registrou indisponibilidade', icon: 'ban', color: MEVAM_COLORS.accent },
+    remove_indispo: { label: 'Removeu indisponibilidade', icon: 'x', color: '#F39C12' },
+    clear_indispo_membro: { label: 'Limpou indisponibilidades', icon: 'trash', color: MEVAM_COLORS.danger },
+    remove_membro: { label: 'Removeu membro', icon: 'trash', color: MEVAM_COLORS.danger },
+  };
+  const logDetalhe = (log) => {
+    const d = log.detalhes || {};
+    if (log.acao === 'add_indispo') return `${(d.datas || []).length} data(s)${d.motivo ? ` · ${d.motivo}` : ''}`;
+    if (log.acao === 'remove_indispo') return d.data ? `Data: ${formatBRDate(d.data).dia}/${d.data.slice(5, 7)}` : 'Uma data removida';
+    if (log.acao === 'clear_indispo_membro') return `${d.quantidade || 0} registro(s) removido(s)`;
+    if (log.acao === 'remove_membro') return d.email || d.func || 'Membro removido da equipe';
+    return '';
+  };
+  const logQuando = (iso) => {
+    const dt = new Date(iso || Date.now());
+    return dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div style={screenWrap}>
       <div style={{ padding: '14px 18px 0' }}>
-        <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, fontSize: 11, color: '#A8BBFF', fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
-          <Icon name="shield" size={12}/> {isAdmin ? 'Painel do administrador' : 'Visão geral'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {isAdmin ? (
+            <button
+              onClick={() => setShowHistorico(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
+                background: showHistorico ? MEVAM_COLORS.accentSoft : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${showHistorico ? MEVAM_COLORS.accent + '80' : MEVAM_COLORS.border}`,
+                color: showHistorico ? '#A8BBFF' : MEVAM_COLORS.muted,
+                fontFamily: 'Manrope', fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase',
+                transition: 'all .15s',
+              }}
+            >
+              <Icon name="clock" size={12}/> Histórico
+            </button>
+          ) : <div />}
+          <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, fontSize: 11, color: '#A8BBFF', fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+            <Icon name="shield" size={12}/> {isAdmin ? 'Painel do administrador' : 'Visão geral'}
+          </div>
         </div>
         <h2 style={{ margin: '12px 0 4px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 26, color: MEVAM_COLORS.text, letterSpacing: -0.6 }}>
           {isAdmin ? 'Painel admin' : 'Visão geral'}
@@ -3490,6 +3528,55 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
       )}
 
       {/* indisponibilidades registradas — somente admin */}
+      {isAdmin && showHistorico && ReactDOM.createPortal((
+        <div onClick={() => setShowHistorico(false)} style={{ position: 'fixed', inset: 0, zIndex: 220, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '58px 18px 24px', overflowY: 'auto' }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 444, borderRadius: 18, background: MEVAM_COLORS.bgSurface, border: `1px solid ${MEVAM_COLORS.borderHi}`, padding: 16, boxShadow: '0 18px 50px rgba(0,0,0,0.48)' }}>
+          <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="clock" size={12}/> Historico de alteracoes
+          </div>
+          <button onClick={() => setShowHistorico(false)} style={{ position: 'absolute', top: 66, right: 28, width: 34, height: 34, borderRadius: 10, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="x" size={15}/>
+          </button>
+          {adminLogs.length === 0 ? (
+            <div style={{ color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13, textAlign: 'center', padding: 16 }}>
+              Nenhuma alteracao administrativa registrada.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {adminLogs.map((log) => {
+                const meta = logMeta[log.acao] || { label: log.acao || 'Alteracao', icon: 'clock', color: MEVAM_COLORS.accent };
+                return (
+                  <div key={log.id || `${log.criado_em}-${log.acao}`} style={{ display: 'flex', gap: 10, padding: '11px 12px', borderRadius: 13, background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}` }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: meta.color + '18', border: `1px solid ${meta.color}44`, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon name={meta.icon} size={14}/>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                        <div style={{ fontFamily: 'Manrope', fontSize: 12.5, color: MEVAM_COLORS.text, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {meta.label}
+                        </div>
+                        <div style={{ fontFamily: 'Manrope', fontSize: 10.5, color: MEVAM_COLORS.mutedSoft, flexShrink: 0 }}>
+                          {logQuando(log.criado_em)}
+                        </div>
+                      </div>
+                      <div style={{ fontFamily: 'Manrope', fontSize: 11.5, color: MEVAM_COLORS.muted, marginTop: 2, lineHeight: 1.35 }}>
+                        {log.admin_nome || 'Admin'} {log.alvo_nome ? `em ${log.alvo_nome}` : ''}
+                      </div>
+                      {logDetalhe(log) && (
+                        <div style={{ fontFamily: 'Manrope', fontSize: 11, color: MEVAM_COLORS.mutedSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {logDetalhe(log)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        </div>
+      ), document.body)}
+
       {isAdmin && <div style={{ padding: '18px 18px 28px' }}>
         <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
           Indisponibilidades registradas
