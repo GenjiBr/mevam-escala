@@ -1517,7 +1517,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
         <div style={{ display: 'flex', gap: 6 }}>
           <Btn variant="ghost" icon={<span style={{ fontSize: 14, lineHeight: 1 }}>♪</span>} onClick={() => setShowMusicas(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Músicas</Btn>
           {equipe && (
-            <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Criar Escala</Btn>
+            <Btn variant="ghost" icon={<Icon name="sparkles" size={13}/>} onClick={() => setShowCodigo(true)} style={{ padding: '7px 10px', fontSize: 11.5 }}>Convidar</Btn>
           )}
         </div>
       </Header>
