@@ -623,7 +623,7 @@ if (!m) continue;
       {/* lista expandida de slots */}
       {open && (
         <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {cobertura.map((x, i) => (
+          {[...cobertura].sort((a, b) => (b.membro ? 1 : 0) - (a.membro ? 1 : 0)).map((x, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
 
               {/* ── botão principal do slot ── */}
