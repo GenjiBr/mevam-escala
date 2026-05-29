@@ -1354,7 +1354,7 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
         ))}
       </div>
 
-      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { window.location.hash = 'addmusica'; window.location.reload(); }} />}
+      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { window.location.hash = 'repertorio'; window.location.reload(); }} />}
       {editMusica && <AddMusicaModal key={'edit-' + editMusica.id} musica={editMusica} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
     </div>,
     document.body
