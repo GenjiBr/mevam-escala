@@ -1153,7 +1153,7 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false, tomCul
 }
 
 // ── Modal adicionar / editar música ──
-function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose }) {
+function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose, onSaved }) {
   const isEdit = !!musica;
   const [url, setUrl]             = useState(musica?.url_youtube || '');
   const [nome, setNome]           = useState(musica?.nome || '');
@@ -1199,7 +1199,7 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
         await dispatch({ type: 'add_musica', musica: musicaCriada || { ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null } });
         onToast('Música adicionada ao repertório!', 'ok');
       }
-      onClose();
+      isEdit ? onClose() : (onSaved ? onSaved() : onClose());
     } catch (e) {
       console.error('[MEVAM] handleSalvar música:', e);
       onToast('Erro: ' + (e.message || 'tente novamente'), 'err');
@@ -1354,7 +1354,7 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
         ))}
       </div>
 
-      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { setAddKey(k => k + 1); setShowAdd(true); }} />}
+      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} onSaved={() => { setAddKey(k => k + 1); setShowAdd(true); }} />}
       {editMusica && <AddMusicaModal key={'edit-' + editMusica.id} musica={editMusica} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
     </div>,
     document.body
