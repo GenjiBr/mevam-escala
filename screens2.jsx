@@ -524,6 +524,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
   const [salvando, setSalvando] = useState(false);
   const [showMusicasSheet, setShowMusicasSheet] = useState(false);
+  const [showVazios, setShowVazios] = useState(false);
 
   const cultoMeta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
   const cultoMusicas = useMemo(() =>
@@ -623,67 +624,92 @@ if (!m) continue;
       {/* lista expandida de slots */}
       {open && (
         <div style={{ borderTop: `1px solid ${MEVAM_COLORS.border}`, padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {[...cobertura].sort((a, b) => (b.membro ? 1 : 0) - (a.membro ? 1 : 0)).map((x, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-
-              {/* ── botão principal do slot ── */}
-              <button
-                onClick={() => {
-                  console.log('[MEVAM] SLOT CLICADO — funcId:', x.funcId, '| membro:', x.membro?.nome || 'vazio', '| isAdmin:', isAdmin, '| membros no state:', state.membros.length);
-                  if (!isAdmin) { console.warn('[MEVAM] bloqueado: não é admin'); return; }
-                  setSlotPicker({ funcId: x.funcId });
-                }}
-                style={{
-                  flex: 1,
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 10px', borderRadius: 12,
-                  background: !x.membro ? 'rgba(91,127,255,0.05)' : 'transparent',
-                  border: !x.membro ? `1px dashed ${MEVAM_COLORS.accent}55` : '1px solid transparent',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  touchAction: 'manipulation',
-                  WebkitTapHighlightColor: 'transparent',
-                  outline: 'none',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {x.membro ? (
-                  <Avatar iniciais={x.membro.iniciais} tom={x.membro.tom} size={30} foto={x.membro.foto} />
-                ) : (
-                  <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, background: 'rgba(91,127,255,0.10)', border: `1px dashed ${MEVAM_COLORS.accent}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.accent }}>
-                    <Icon name="plus" size={13}/>
-                  </div>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'Manrope', fontSize: 13, color: x.membro ? MEVAM_COLORS.text : MEVAM_COLORS.muted, fontWeight: x.membro ? 600 : 500 }}>
-                      {x.membro ? x.membro.nome : 'Slot vazio'}
-                    </span>
-                    {x.indispo && <Icon name="ban" size={11}/>}
-                  </div>
-                  <div style={{ marginTop: 2 }}><FuncBadge funcId={x.funcId}/></div>
-                </div>
-                {x.indispo && (
-                  <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.danger, background: MEVAM_COLORS.dangerSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6, flexShrink: 0 }}>
-                    Conflito
-                  </span>
-                )}
-              </button>
-
-              {/* ── × remover (sibling, não aninhado) ── */}
-              {isAdmin && x.membro && (
+          {(() => {
+            const sorted = [...cobertura].sort((a, b) => (b.membro ? 1 : 0) - (a.membro ? 1 : 0));
+            const preenchidos = sorted.filter(x => x.membro);
+            const vaziosArr = sorted.filter(x => !x.membro);
+            const renderSlot = (x, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* ── botão principal do slot ── */}
                 <button
-                  onClick={() => handleSave(x.funcId, null)}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 8, padding: '5px 6px', cursor: 'pointer', color: MEVAM_COLORS.mutedSoft, display: 'flex', alignItems: 'center', flexShrink: 0, touchAction: 'manipulation' }}
-                  title="Remover do slot"
+                  onClick={() => {
+                    console.log('[MEVAM] SLOT CLICADO — funcId:', x.funcId, '| membro:', x.membro?.nome || 'vazio', '| isAdmin:', isAdmin, '| membros no state:', state.membros.length);
+                    if (!isAdmin) { console.warn('[MEVAM] bloqueado: não é admin'); return; }
+                    setSlotPicker({ funcId: x.funcId });
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 10px', borderRadius: 12,
+                    background: !x.membro ? 'rgba(91,127,255,0.05)' : 'transparent',
+                    border: !x.membro ? `1px dashed ${MEVAM_COLORS.accent}55` : '1px solid transparent',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
                 >
-                  <Icon name="x" size={13}/>
+                  {x.membro ? (
+                    <Avatar iniciais={x.membro.iniciais} tom={x.membro.tom} size={30} foto={x.membro.foto} />
+                  ) : (
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, background: 'rgba(91,127,255,0.10)', border: `1px dashed ${MEVAM_COLORS.accent}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: MEVAM_COLORS.accent }}>
+                      <Icon name="plus" size={13}/>
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Manrope', fontSize: 13, color: x.membro ? MEVAM_COLORS.text : MEVAM_COLORS.muted, fontWeight: x.membro ? 600 : 500 }}>
+                        {x.membro ? x.membro.nome : 'Slot vazio'}
+                      </span>
+                      {x.indispo && <Icon name="ban" size={11}/>}
+                    </div>
+                    <div style={{ marginTop: 2 }}><FuncBadge funcId={x.funcId}/></div>
+                  </div>
+                  {x.indispo && (
+                    <span style={{ fontSize: 9.5, fontFamily: 'Manrope', fontWeight: 700, color: MEVAM_COLORS.danger, background: MEVAM_COLORS.dangerSoft, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.6, flexShrink: 0 }}>
+                      Conflito
+                    </span>
+                  )}
                 </button>
-              )}
-            </div>
-          ))}
+                {/* ── × remover (sibling, não aninhado) ── */}
+                {isAdmin && x.membro && (
+                  <button
+                    onClick={() => handleSave(x.funcId, null)}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 8, padding: '5px 6px', cursor: 'pointer', color: MEVAM_COLORS.mutedSoft, display: 'flex', alignItems: 'center', flexShrink: 0, touchAction: 'manipulation' }}
+                    title="Remover do slot"
+                  >
+                    <Icon name="x" size={13}/>
+                  </button>
+                )}
+              </div>
+            );
+            return (
+              <>
+                {preenchidos.map((x, i) => renderSlot(x, `p${i}`))}
+                {vaziosArr.length > 0 && (
+                  <button
+                    onClick={() => setShowVazios(v => !v)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                      background: 'transparent', border: 'none', padding: '5px 0 2px', cursor: 'pointer',
+                      color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 11.5, fontWeight: 600,
+                      touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', outline: 'none',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', transition: 'transform .2s', transform: showVazios ? 'rotate(180deg)' : 'none' }}>
+                      <Icon name="chevron" size={12}/>
+                    </span>
+                    {showVazios ? 'Ocultar slots vazios' : `${vaziosArr.length} slots vazios`}
+                  </button>
+                )}
+                {showVazios && vaziosArr.map((x, i) => renderSlot(x, `v${i}`))}
+              </>
+            );
+          })()}
 
-          {isAdmin && slotsVazios > 0 && (
+          {isAdmin && showVazios && slotsVazios > 0 && (
             <div style={{ marginTop: 4, fontSize: 11, color: MEVAM_COLORS.accent, fontFamily: 'Manrope', textAlign: 'center', opacity: 0.7 }}>
               Toque em um slot para escalar um membro
             </div>
