@@ -12,24 +12,9 @@ window.FUNCOES = {
   live:          { label: 'Live',            color: '#EF4444', icon: '📡',  short: 'LV' },
   story:         { label: 'Story',           color: '#EC4899', icon: '📱',  short: 'ST' },
   camera_fixa:   { label: 'Câmera Fixa',     color: '#10B981', icon: '🎥',  short: 'CF' },
+  iluminacao:    { label: 'Iluminação', color:      '#F59E0B', icon: '💡',  short: 'IL' },
+  convidado:     { label: 'Convidado',  color:      '#6B7280', icon: '🤝',  short: 'CV' },
 };
-
-window.MEMBROS_INICIAIS = [
-  { id: 'm1',  nome: 'Lucas Andrade',   iniciais: 'LA', func: 'ministro',      secundarias: ['vocal_backing','violao'], status: 'ativo',     tom: '#F39C12' },
-  { id: 'm2',  nome: 'Daniel Costa',    iniciais: 'DC', func: 'ministro',      secundarias: ['violao'],                status: 'ativo',     tom: '#F39C12' },
-  { id: 'm3',  nome: 'Maria Helena',    iniciais: 'MH', func: 'vocal_backing', secundarias: [],                        status: 'ativo',     tom: '#8E44AD' },
-  { id: 'm4',  nome: 'Bruno Vieira',    iniciais: 'BV', func: 'guitarra',      secundarias: ['violao'],                status: 'ativo',     tom: '#E67E22' },
-  { id: 'm5',  nome: 'Rafael Lima',     iniciais: 'RL', func: 'baixo',         secundarias: [],                        status: 'ativo',     tom: '#3B6FB5' },
-  { id: 'm6',  nome: 'Tiago Mendes',    iniciais: 'TM', func: 'bateria',       secundarias: [],                        status: 'ativo',     tom: '#E74C3C' },
-  { id: 'm7',  nome: 'Ana Carolina',    iniciais: 'AC', func: 'teclado',       secundarias: ['vocal_backing'],         status: 'ativo',     tom: '#2980B9' },
-  { id: 'm8',  nome: 'Pedro Henrique',  iniciais: 'PH', func: 'violao',        secundarias: ['vocal_backing'],         status: 'ativo',     tom: '#27AE60' },
-  { id: 'm9',  nome: 'Camila Rocha',    iniciais: 'CR', func: 'vocal_backing', secundarias: [],                        status: 'ativo',     tom: '#8E44AD' },
-  { id: 'm10', nome: 'Marcos Silva',    iniciais: 'MS', func: 'ministro',      secundarias: [],                        status: 'ativo',     tom: '#F39C12' },
-  { id: 'm11', nome: 'Davi Souza',      iniciais: 'DS', func: 'live',          secundarias: ['camera_fixa'],           status: 'ativo',     tom: '#EF4444' },
-  { id: 'm12', nome: 'Letícia Borges',  iniciais: 'LB', func: 'telao',         secundarias: ['story'],                 status: 'ativo',     tom: '#6366F1' },
-  { id: 'm13', nome: 'João Vitor',      iniciais: 'JV', func: 'vocal_backing', secundarias: ['violao'],                status: 'visitante', tom: '#8E44AD' },
-  { id: 'm14', nome: 'Beatriz Nunes',   iniciais: 'BN', func: 'story',         secundarias: [],                        status: 'inativo',   tom: '#EC4899' },
-];
 
 const HOJE = new Date(); HOJE.setHours(0,0,0,0);
 const fmt = (d) => d.toISOString().slice(0, 10);
@@ -51,7 +36,7 @@ function getNextOccurrences(weekday, count) {
 
 // Escalados vazios (preenchidos pelo admin depois)
 const ESC_VAZIO = { ministro: null, vocal_backing: null, guitarra: null, baixo: null,
-  bateria: null, teclado: null, violao: null, telao: null, live: null, story: null, camera_fixa: null };
+  bateria: null, teclado: null, violao: null, telao: null, live: null, story: null, camera_fixa: null,iluminacao: null, convidado: null, };
 
 // 2º domingo do mês: dia entre 8 e 14
 const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };

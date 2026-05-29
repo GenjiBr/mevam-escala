@@ -14,6 +14,12 @@ function reducer(state, action) {
     case 'set_cultos':
       return { ...state, cultos: action.cultos };
 
+    case 'set_admin_logs':
+      return { ...state, adminLogs: action.logs || [] };
+
+    case 'add_admin_log':
+      return { ...state, adminLogs: [action.log, ...(state.adminLogs || [])].filter(Boolean).slice(0, 50) };
+
     case 'add_indispo': {
       const next = { ...state.indispo };
       for (const iso of action.datas) {
@@ -73,7 +79,16 @@ function reducer(state, action) {
     case 'set_musicas':
       return { ...state, musicas: action.musicas };
 
+    case 'merge_musicas': {
+      const byId = new Map((state.musicas || []).filter((m) => m?.id).map((m) => [m.id, m]));
+      for (const musica of (action.musicas || [])) {
+        if (musica?.id) byId.set(musica.id, { ...(byId.get(musica.id) || {}), ...musica });
+      }
+      return { ...state, musicas: Array.from(byId.values()) };
+    }
+
     case 'add_musica':
+      if (action.musica?.id && (state.musicas || []).some((m) => m.id === action.musica.id)) return state;
       return { ...state, musicas: [...(state.musicas || []), action.musica] };
 
     case 'remove_musica':
@@ -162,8 +177,16 @@ function SplashScreen({ msg = 'Carregando...' }) {
 ───────────────────────────────────────────────── */
 function App() {
   const [usuario, setUsuario] = useStateApp(null);
-  const [tab, setTab] = useStateApp('escala');
-  const [state, _dispatch] = useReducer(reducer, { membros: [], cultos: [], indispo: {}, musicas: [], carregando: true });
+  const [tab, setTab] = useStateApp(() => {
+  const hash = window.location.hash.replace('#', '');
+  return ['escala', 'disponibilidade', 'membros', 'admin', 'perfil'].includes(hash) ? hash : 'escala';
+});
+useEffectApp(() => {
+  if (window.location.hash !== '#repertorio') {
+    window.location.hash = tab;
+  }
+}, [tab]);
+  const [state, _dispatch] = useReducer(reducer, { membros: [], cultos: [], indispo: {}, musicas: [], adminLogs: [], carregando: true });
   const [toast, setToast] = useStateApp({ msg: '', kind: 'ok' });
   const [authLoading, setAuthLoading] = useStateApp(true);
   const [equipe, setEquipe] = useStateApp(null);
@@ -171,25 +194,52 @@ function App() {
 
   const showToast = (msg, kind = 'ok') => setToast({ msg, kind });
 
+  const registrarAdminLog = useCallbackApp(async (acao, alvo, detalhes = {}) => {
+    if (!equipe?.id || usuario?.perfil !== 'admin') return;
+    try {
+      const log = await sbAddAdminLog({
+        equipe_id: equipe.id,
+        admin_id: usuario.id,
+        admin_nome: usuario.nome,
+        acao,
+        alvo_id: alvo?.id || null,
+        alvo_nome: alvo?.nome || null,
+        detalhes,
+      });
+      _dispatch({ type: 'add_admin_log', log });
+    } catch (e) {
+      console.warn('[MEVAM] registrarAdminLog:', e.message);
+    }
+  }, [equipe?.id, usuario?.id, usuario?.nome, usuario?.perfil]);
+
   /* ── Dispatch com persistência no Supabase ── */
   const dispatch = useCallbackApp(async (action) => {
+    const alvoId = action.usuarioId || action.id;
+    const alvo = state.membros.find((m) => m.id === alvoId);
+    const countIndispoAlvo = action.type === 'clear_indispo_membro'
+      ? Object.values(state.indispo || {}).reduce((total, list) => total + (list || []).filter((i) => i.membroId === action.usuarioId).length, 0)
+      : 0;
     _dispatch(action);
     switch (action.type) {
       case 'add_indispo':
         for (const iso of action.datas)
           await sbAddIndispo({ membroId: action.usuarioId, data: iso, motivo: action.motivo, lembrete: action.lembrete });
+        await registrarAdminLog('add_indispo', alvo, { datas: action.datas, motivo: action.motivo || '', lembrete: !!action.lembrete });
         break;
       case 'remove_indispo':
         await sbRemoveIndispo({ membroId: action.usuarioId, data: action.iso });
+        await registrarAdminLog('remove_indispo', alvo, { data: action.iso });
         break;
       case 'clear_indispo_membro':
         await sbRemoveAllIndispoMembro(action.usuarioId);
+        await registrarAdminLog('clear_indispo_membro', alvo, { quantidade: countIndispoAlvo });
         break;
       case 'update_membro':
         await sbUpdateMembro(action.id, action.updates);
         break;
       case 'remove_membro':
         await sbDeleteMembro(action.id);
+        await registrarAdminLog('remove_membro', alvo, { func: alvo?.func || null, email: alvo?.email || null });
         break;
       case 'sair_escala':
         await sbSairDaEscala(action.usuarioId);
@@ -207,7 +257,7 @@ function App() {
         await sbUpdateCultoMusicas(action.cultoId, action.musicas);
         break;
     }
-  }, [equipe]);
+  }, [equipe, registrarAdminLog, state.indispo, state.membros]);
 
   /* ── Gerar escala automática ──────────────────────────────────────────────
      semanas: número de semanas a cobrir (4=1mês, 13=3m, 26=6m, 52=1ano)
@@ -357,6 +407,69 @@ function App() {
     showToast(`Culto "${titulo}" adicionado!`, 'ok');
   }, [state.cultos]);
 
+  const withTimeout = (promise, ms, label) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} demorou para responder`)), ms)),
+  ]);
+
+  const carregarUsuarioDaSessao = useCallbackApp(async (session) => {
+    if (!session?.user) {
+      setUsuario(null);
+      return;
+    }
+
+    const emailUsuario = session.user.email;
+    const fullName = session.user.user_metadata?.full_name || '';
+    const nomeAuto = fullName.trim() ||
+      (emailUsuario || '').split('@')[0]
+        .replace(/[._-]/g, ' ')
+        .split(' ')
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join(' ')
+        .trim();
+    const idFallback = 'u_' + session.user.id.replace(/-/g, '').slice(0, 10);
+
+    let membro = null;
+    for (let i = 0; i < 3 && !membro; i++) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 900));
+      const { data, error } = await withTimeout(
+        SB.from('membros').select('*').eq('email', emailUsuario).maybeSingle(),
+        8000,
+        'Consulta de membro'
+      );
+      if (error) throw error;
+      membro = data;
+    }
+
+    if (!membro) {
+      const novoMembro = {
+        id: idFallback, nome: nomeAuto, email: emailUsuario,
+        iniciais: nomeAuto.split(' ').map((x) => x[0]).filter(Boolean).join('').toUpperCase().slice(0, 2),
+        func: 'vocal_backing', secundarias: [], status: 'ativo', tom: '#5B7FFF', perfil: 'membro',
+      };
+      await withTimeout(sbInsertMembro(novoMembro), 8000, 'Cadastro de membro');
+      membro = novoMembro;
+    }
+
+    setUsuario({ id: membro.id, nome: membro.nome, perfil: membro.perfil || 'membro' });
+  }, []);
+
+  useEffectApp(() => {
+    let ativo = true;
+    withTimeout(SB.auth.getSession(), 5000, 'Verificacao de sessao')
+      .then(async ({ data }) => {
+        await carregarUsuarioDaSessao(data?.session);
+      })
+      .catch((e) => {
+        console.error('[MEVAM] getSession:', e);
+        setUsuario(null);
+      })
+      .finally(() => {
+        if (ativo) setAuthLoading(false);
+      });
+    return () => { ativo = false; };
+  }, [carregarUsuarioDaSessao]);
+
   /* ── Auth: escuta mudanças de sessão ── */
   useEffectApp(() => {
     const { data: { subscription } } = SB.auth.onAuthStateChange(async (event, session) => {
@@ -437,7 +550,13 @@ function App() {
   /* ── Carrega repertório quando a equipe muda ── */
   useEffectApp(() => {
     if (!equipe?.id) { _dispatch({ type: 'set_musicas', musicas: [] }); return; }
-    sbGetMusicas(equipe.id).then((musicas) => _dispatch({ type: 'set_musicas', musicas }));
+    sbGetMusicas(equipe.id).then((musicas) => _dispatch({ type: 'merge_musicas', musicas }));
+  }, [equipe?.id]);
+
+  /* ── Carrega historico administrativo ── */
+  useEffectApp(() => {
+    if (!equipe?.id) { _dispatch({ type: 'set_admin_logs', logs: [] }); return; }
+    sbGetAdminLogs(equipe.id).then((logs) => _dispatch({ type: 'set_admin_logs', logs }));
   }, [equipe?.id]);
 
   /* ── Toast de boas-vindas ── */
@@ -503,6 +622,7 @@ function App() {
     setEquipe(null);
     setUsuario(null);
     setTab('escala');
+    window.location.hash = '';
   };
 
   const handleUpdateUsuario = (updates) => setUsuario((u) => ({ ...u, ...updates }));

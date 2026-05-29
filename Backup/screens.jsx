@@ -1121,7 +1121,7 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false, tomCul
               <YTIcon size={20}/>
             </a>
           )}
-          {isAdmin && !confirmDel && (
+          {!confirmDel && (
             <>
               <button onClick={onEdit} style={{ background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: '#A8BBFF', display: 'flex', alignItems: 'center' }}>
                 <Icon name="edit" size={13}/>
@@ -1131,7 +1131,7 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false, tomCul
               </button>
             </>
           )}
-          {isAdmin && confirmDel && (
+          {confirmDel && (
             <button onClick={() => setConfirmDel(false)} style={{ background: MEVAM_COLORS.card, border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex', alignItems: 'center' }}>
               <Icon name="x" size={13}/>
             </button>
@@ -1840,12 +1840,16 @@ function SlotPickerModal({ funcId, culto, state, equipe, onSelect, onClose }) {
   // ── filtros ──────────────────────────────────────────────
   const indispoIds = (state.indispo[culto.data] || []).map((i) => i.membroId);
   const membroAtual = culto.escalados[funcId] || null;
+  const jaEscaladosIds = Object.values(culto.escalados || {})
+    .flatMap((v) => (Array.isArray(v) ? v : (v ? [v] : [])))
+    .filter((id) => !id?.startsWith('convidado_'));
 
   const candidatos = state.membros.filter((m) =>
     m.status === 'ativo' &&
     m.equipe_id === equipe?.id &&
     (m.func === funcId || (m.secundarias || []).includes(funcId)) &&
-    !indispoIds.includes(m.id)
+    !indispoIds.includes(m.id) &&
+    (!jaEscaladosIds.includes(m.id) || m.id === membroAtual)
   );
 
   console.log('[MEVAM] SlotPickerModal → funcId:', funcId, '| label:', f.label,
@@ -1964,6 +1968,26 @@ function SlotPickerModal({ funcId, culto, state, equipe, onSelect, onClose }) {
             })
           )}
         </div>
+{/* — botão convidado — */}
+<div style={{ padding: '0 12px 4px' }}>
+  <button
+   onClick={() => {
+  const id = 'convidado_' + Date.now();
+  onSelect(id);
+  onClose();
+}}
+    style={{
+      width: '100%', padding: '10px', borderRadius: 10,
+      background: 'rgba(107,114,128,0.08)',
+      border: '1px dashed rgba(107,114,128,0.35)',
+      color: 'rgba(107,114,128,0.8)',
+      fontFamily: 'Manrope', fontSize: 12,
+      fontWeight: 500, cursor: 'pointer',
+    }}
+  >
+    🤝 Escalar como Convidado
+  </button>
+</div>
 
         {/* ── botão cancelar ── */}
         <div style={{ padding: '4px 12px 14px' }}>
@@ -2015,8 +2039,9 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   for (const [fid, val] of Object.entries(culto.escalados)) {
     const ids = Array.isArray(val) ? val : (val ? [val] : []);
     for (const id of ids) {
-      const m = state.membros.find((x) => x.id === id);
-      if (!m) continue;
+     const m = state.membros.find((x) => x.id === id) 
+  || (id?.startsWith('convidado_') ? { id, nome: 'Convidado', iniciais: 'CV', tom: '#6B7280', func: 'convidado', secundarias: [], foto: null } : null);
+if (!m) continue;
       const indispo = indispoIds.includes(id);
       if (indispo) conflitos++;
       cobertura.push({ funcId: fid, membro: m, indispo });
@@ -2225,19 +2250,9 @@ function DisponibilidadeScreen({ state, dispatch, usuario, onToast, equipe }) {
             <Icon name="ban" size={12}/> Indisponibilidade
           </div>
           <h2 style={{ margin: '14px 0 6px', fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 24, color: MEVAM_COLORS.text, letterSpacing: -0.5, lineHeight: 1.15 }}>
-            Suas datas bloqueadas
+            Suas datas Ausente
           </h2>
-          <Card style={{ padding: 14, marginTop: 14 }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: MEVAM_COLORS.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
-                <Icon name="shield" size={17}/>
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>Gerenciado pelo administrador</div>
-                <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2 }}>Fale com o admin para registrar ou alterar indisponibilidades.</div>
-              </div>
-            </div>
-          </Card>
+
         </div>
         <div style={{ padding: '18px 18px 28px' }}>
           {minhasBloqueadas.length === 0 ? (
@@ -2610,7 +2625,7 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
 
   const cultos = state.cultos.filter((c) => Object.values(c.escalados).flat().includes(membro.id));
-  const todasFuncoes = Object.entries(window.FUNCOES);
+  const todasFuncoes = Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'convidado');
 
   const toggleSecundaria = (fid) => {
     if (fid === funcPrincipal) return;
@@ -3352,21 +3367,7 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
             )}
           </div>
         </div>
-      ) : (
-        <div style={{ padding: '18px 18px 0' }}>
-          <Card style={{ padding: 14 }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A8BBFF', flexShrink: 0 }}>
-                <Icon name="shield" size={16}/>
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontFamily: 'Manrope', color: MEVAM_COLORS.text, fontWeight: 600 }}>Modo visualização</div>
-                <div style={{ fontSize: 11.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', marginTop: 2, lineHeight: 1.45 }}>Apenas administradores podem gerar e editar a escala.</div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
+) : null}
 
       {/* cultos eventuais (sex/sáb) */}
       {isAdmin && (
@@ -3730,7 +3731,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   };
 
   const cores = ['#5B7FFF','#F39C12','#E67E22','#8E44AD','#E74C3C','#27AE60','#2980B9','#1ABC9C','#EC4899','#3B6FB5','#EF4444','#6366F1'];
-  const todasFuncoes = Object.entries(window.FUNCOES);
+  const todasFuncoes = Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'convidado');
   const iniciais = (n) => n.trim().split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
   const toggleSecundaria = (fid) => {
