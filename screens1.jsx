@@ -1167,7 +1167,7 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose })
     if (!u) return;
     setBuscando(true);
     try {
-      const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(u)}&format=json`);
+      const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(u)}`);
       if (!res.ok) throw new Error('Vídeo não encontrado');
       const d = await res.json();
       setNome(d.title);
