@@ -364,29 +364,29 @@ useEffectApp(() => {
 
           const disponivel = (m) => !indispoIds.includes(m.id) && !jaEscaladosNesteCulto.has(m.id);
 
-          // Regra 1: prioridade absoluta para quem tem essa como FUNÇÃO PRINCIPAL
+          // Rodízio inteligente: considera TODAS as funções do membro (principal + secundárias)
+          // "Devido" = a função com menor contagem entre todas; empate desempata pela menos recente.
+          // Fallback 1: principais não-devidos (garante slot preenchido quando possível)
+          // Fallback 2: qualquer secundário disponível (último recurso)
           const primarios = membrosAtivos.filter((m) => m.func === fid && disponivel(m));
-
-          // Regra 3: só usa secundária se nenhum membro principal está disponível
-          //   Para membros com múltiplas secundárias, rodízio por função menos servida;
-          //   em empate de contagem, prefere a função NÃO usada mais recentemente.
-          //   Se nenhum candidato "devido" disponível, aceita qualquer (nunca deixa vazio sem motivo).
+          const isDue = (m) => {
+            const allFuncs = [m.func, ...(m.secundarias || [])].filter(Boolean);
+            if (allFuncs.length <= 1) return true;
+            const countFid = contagemFuncao[m.id]?.[fid] || 0;
+            const minCount = Math.min(...allFuncs.map((f) => contagemFuncao[m.id]?.[f] || 0));
+            if (countFid > minCount) return false;
+            const tiedFuncs = allFuncs.filter((f) => (contagemFuncao[m.id]?.[f] || 0) === minCount);
+            const lastFid = ultimaVezFuncao[m.id]?.[fid] || '';
+            const maxLast = tiedFuncs.reduce((acc, f) => { const d = ultimaVezFuncao[m.id]?.[f] || ''; return d > acc ? d : acc; }, '');
+            return lastFid < maxLast || tiedFuncs.every((f) => (ultimaVezFuncao[m.id]?.[f] || '') === lastFid);
+          };
           const candidatos = (() => {
+            const devidos = membrosAtivos.filter(
+              (m) => (m.func === fid || (m.secundarias || []).includes(fid)) && disponivel(m) && isDue(m)
+            );
+            if (devidos.length > 0) return devidos;
             if (primarios.length > 0) return primarios;
-            const secsAll = membrosAtivos.filter((m) => (m.secundarias || []).includes(fid) && disponivel(m));
-            const secsDue = secsAll.filter((m) => {
-              const secs = m.secundarias || [];
-              if (secs.length <= 1) return true;
-              const countFid = contagemFuncao[m.id]?.[fid] || 0;
-              const minCount = Math.min(...secs.map((s) => contagemFuncao[m.id]?.[s] || 0));
-              if (countFid > minCount) return false;
-              // Empate de contagem: incluir `fid` só se não foi a mais recente entre as empatadas
-              const tiedSecs = secs.filter((s) => (contagemFuncao[m.id]?.[s] || 0) === minCount);
-              const lastFid = ultimaVezFuncao[m.id]?.[fid] || '';
-              const maxLastAmongTied = Math.max(...tiedSecs.map((s) => ultimaVezFuncao[m.id]?.[s] || ''));
-              return lastFid < maxLastAmongTied || tiedSecs.every((s) => (ultimaVezFuncao[m.id]?.[s] || '') === lastFid);
-            });
-            return secsDue.length > 0 ? secsDue : secsAll;
+            return membrosAtivos.filter((m) => (m.secundarias || []).includes(fid) && disponivel(m));
           })();
 
           console.log(`[MEVAM] ${c.data} | slot "${fid}" | primários: [${primarios.map((m) => m.nome).join(', ') || 'NENHUM'}] | usando ${primarios.length > 0 ? 'principal' : 'secundária'}`);
