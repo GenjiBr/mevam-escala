@@ -35,6 +35,7 @@ window.sbGetCultos = async () => {
     ...c,
     titulo: c.titulo === 'Culto da Família' ? 'Celebração da Família' : c.titulo,
     escalados: c.escalados || {},
+    observacao: c.observacao || '',
   }));
 };
 
@@ -235,6 +236,11 @@ window.sbDeleteMusica = async (id) => {
 window.sbUpdateCultoMusicas = async (cultoId, musicas) => {
   const { error } = await SB.from('cultos').update({ musicas }).eq('id', cultoId);
   if (error) { console.error('sbUpdateCultoMusicas:', error.message); throw new Error(error.message); }
+};
+
+window.sbUpdateCultoObservacao = async (cultoId, observacao) => {
+  const { error } = await SB.from('cultos').update({ observacao: observacao || '' }).eq('id', cultoId);
+  if (error) { console.error('sbUpdateCultoObservacao:', error.message); throw new Error(error.message); }
 };
 
 window.sbUploadAvatarPessoal = async (userId, arquivo) => {

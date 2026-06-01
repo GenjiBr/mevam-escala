@@ -598,6 +598,7 @@ function CultoCard({ culto, state, usuarioId, usuario, dispatch, onToast, equipe
   const [slotPicker, setSlotPicker] = useState(null); // { funcId } | null
   const [salvando, setSalvando] = useState(false);
   const [showMusicasSheet, setShowMusicasSheet] = useState(false);
+  const [showObservacaoModal, setShowObservacaoModal] = useState(false);
   const [showVazios, setShowVazios] = useState(false);
 
   const cultoMeta = useMemo(() => normMusicas(culto.musicas), [culto.musicas]);
@@ -793,6 +794,22 @@ if (!m) continue;
 
       {/* ── Músicas do culto — visível para todos ── */}
       <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${MEVAM_COLORS.border}` }}>
+        {(culto.observacao || '').trim() && (
+          <div style={{
+            marginBottom: 8,
+            padding: '9px 10px',
+            borderRadius: 10,
+            background: 'rgba(245,158,11,0.10)',
+            border: '1px solid rgba(245,158,11,0.28)',
+            color: '#F8C471',
+            fontFamily: 'Manrope',
+            fontSize: 12,
+            lineHeight: 1.45,
+            whiteSpace: 'pre-wrap',
+          }}>
+            {(culto.observacao || '').trim()}
+          </div>
+        )}
         {cultoMusicas.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
             {cultoMusicas.map(({ musica: m, tomCulto }) => (
@@ -803,12 +820,27 @@ if (!m) continue;
             ))}
           </div>
         )}
-        <button
-          onClick={() => setShowMusicasSheet(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-        >
-          {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowMusicasSheet(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}44`, color: '#A8BBFF', fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            {cultoMusicas.length > 0 ? `Músicas do culto (${cultoMusicas.length}/5)` : 'Músicas do culto'}
+          </button>
+          <button
+            onClick={() => setShowObservacaoModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 10,
+              background: (culto.observacao || '').trim() ? 'rgba(245,158,11,0.14)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${(culto.observacao || '').trim() ? 'rgba(245,158,11,0.42)' : MEVAM_COLORS.border}`,
+              color: (culto.observacao || '').trim() ? '#F8C471' : MEVAM_COLORS.muted,
+              fontFamily: 'Manrope', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            <Icon name="edit" size={12}/>
+            Observação
+          </button>
+        </div>
       </div>
 
       {/* modal de seleção (portal → document.body) */}
@@ -833,8 +865,105 @@ if (!m) continue;
           onClose={() => setShowMusicasSheet(false)}
         />
       )}
+      {showObservacaoModal && (
+        <CultoObservacaoModal
+          culto={culto}
+          usuario={usuario}
+          dispatch={dispatch}
+          onToast={onToast}
+          onClose={() => setShowObservacaoModal(false)}
+        />
+      )}
     </Card>
   );
+}
+
+// ── Modal de observação do culto ──
+function CultoObservacaoModal({ culto, usuario, dispatch, onToast, onClose }) {
+  const isAdmin = usuario?.perfil === 'admin';
+  const [texto, setTexto] = useState(culto.observacao || '');
+  const [salvando, setSalvando] = useState(false);
+
+  const salvar = async () => {
+    if (!isAdmin || salvando) return;
+    setSalvando(true);
+    try {
+      await dispatch({ type: 'update_culto_observacao', cultoId: culto.id, observacao: texto.trim() });
+      onToast?.('Observação salva!', 'ok');
+      onClose();
+    } catch (e) {
+      onToast?.('Erro: ' + (e.message || 'tente novamente'), 'err');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const conteudo = (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 210,
+      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .18s',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 480, margin: '0 auto',
+        background: MEVAM_COLORS.bgDeep,
+        border: `1px solid ${MEVAM_COLORS.borderHi}`,
+        borderRadius: '22px 22px 0 0',
+        padding: '18px 18px calc(18px + env(safe-area-inset-bottom))',
+        boxShadow: '0 -18px 60px rgba(0,0,0,0.55)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text }}>Observação</div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 12, color: MEVAM_COLORS.muted, marginTop: 2 }}>{culto.titulo}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`, borderRadius: 10, padding: 8, cursor: 'pointer', color: MEVAM_COLORS.muted, display: 'flex' }}>
+            <Icon name="x" size={15}/>
+          </button>
+        </div>
+
+        {isAdmin ? (
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Escreva uma observação importante para este culto..."
+            rows={6}
+            maxLength={600}
+            autoFocus
+            style={{
+              width: '100%', resize: 'vertical', minHeight: 130,
+              padding: '12px 13px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.04)', border: `1px solid ${MEVAM_COLORS.border}`,
+              color: MEVAM_COLORS.text, outline: 'none',
+              fontFamily: 'Manrope', fontSize: 16, lineHeight: 1.45,
+            }}
+          />
+        ) : (
+          <div style={{
+            minHeight: 110, padding: '12px 13px', borderRadius: 12,
+            background: 'rgba(255,255,255,0.04)', border: `1px solid ${MEVAM_COLORS.border}`,
+            color: (culto.observacao || '').trim() ? MEVAM_COLORS.text : MEVAM_COLORS.muted,
+            fontFamily: 'Manrope', fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+          }}>
+            {(culto.observacao || '').trim() || 'Nenhuma observação para este culto.'}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid ${MEVAM_COLORS.border}`, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            {isAdmin ? 'Cancelar' : 'Fechar'}
+          </button>
+          {isAdmin && (
+            <button onClick={salvar} disabled={salvando} style={{ flex: 1, padding: '12px 14px', borderRadius: 12, background: MEVAM_COLORS.accent, border: `1px solid ${MEVAM_COLORS.accent}`, color: '#fff', fontFamily: 'Manrope', fontSize: 13, fontWeight: 800, cursor: salvando ? 'wait' : 'pointer', opacity: salvando ? 0.72 : 1 }}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return ReactDOM.createPortal(conteudo, document.body);
 }
 
 // ════════════════════════════════════════════════════════════

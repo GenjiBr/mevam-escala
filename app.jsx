@@ -102,6 +102,11 @@ function reducer(state, action) {
       return { ...state, cultos };
     }
 
+    case 'update_culto_observacao': {
+      const cultos = state.cultos.map((c) => c.id === action.cultoId ? { ...c, observacao: action.observacao } : c);
+      return { ...state, cultos };
+    }
+
     default: return state;
   }
 }
@@ -256,8 +261,12 @@ useEffectApp(() => {
       case 'update_culto_musicas':
         await sbUpdateCultoMusicas(action.cultoId, action.musicas);
         break;
+      case 'update_culto_observacao':
+        if (usuario?.perfil !== 'admin') throw new Error('Apenas administradores podem alterar a observacao.');
+        await sbUpdateCultoObservacao(action.cultoId, action.observacao);
+        break;
     }
-  }, [equipe, registrarAdminLog, state.indispo, state.membros]);
+  }, [equipe, registrarAdminLog, state.indispo, state.membros, usuario?.perfil]);
 
   /* ── Gerar escala automática ──────────────────────────────────────────────
      semanas: número de semanas a cobrir (4=1mês, 13=3m, 26=6m, 52=1ano)
