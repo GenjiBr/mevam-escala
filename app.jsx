@@ -359,54 +359,75 @@ useEffectApp(() => {
         const esc = { ...c.escalados };
         const jaEscaladosNesteCulto = new Set();
 
+        const disponivel = (m) => !indispoIds.includes(m.id) && !jaEscaladosNesteCulto.has(m.id);
+
+        // Fase 1 — PRINCIPAL: prioridade absoluta; rodízio por contagem + data entre mesma função
         for (const fid of Object.keys(esc)) {
           if (Array.isArray(esc[fid])) continue; // multi-membro: manual
-
-          const disponivel = (m) => !indispoIds.includes(m.id) && !jaEscaladosNesteCulto.has(m.id);
-
-          // Rodízio inteligente: considera TODAS as funções do membro (principal + secundárias)
-          // "Devido" = a função com menor contagem entre todas; empate desempata pela menos recente.
-          // Fallback 1: principais não-devidos (garante slot preenchido quando possível)
-          // Fallback 2: qualquer secundário disponível (último recurso)
           const primarios = membrosAtivos.filter((m) => m.func === fid && disponivel(m));
-          const isDue = (m) => {
-            const allFuncs = [m.func, ...(m.secundarias || [])].filter(Boolean);
-            if (allFuncs.length <= 1) return true;
-            const countFid = contagemFuncao[m.id]?.[fid] || 0;
-            const minCount = Math.min(...allFuncs.map((f) => contagemFuncao[m.id]?.[f] || 0));
-            if (countFid > minCount) return false;
-            const tiedFuncs = allFuncs.filter((f) => (contagemFuncao[m.id]?.[f] || 0) === minCount);
-            const lastFid = ultimaVezFuncao[m.id]?.[fid] || '';
-            const maxLast = tiedFuncs.reduce((acc, f) => { const d = ultimaVezFuncao[m.id]?.[f] || ''; return d > acc ? d : acc; }, '');
-            return lastFid < maxLast || tiedFuncs.every((f) => (ultimaVezFuncao[m.id]?.[f] || '') === lastFid);
-          };
-          const candidatos = (() => {
-            const devidos = membrosAtivos.filter(
-              (m) => (m.func === fid || (m.secundarias || []).includes(fid)) && disponivel(m) && isDue(m)
-            );
-            if (devidos.length > 0) return devidos;
-            if (primarios.length > 0) return primarios;
-            return membrosAtivos.filter((m) => (m.secundarias || []).includes(fid) && disponivel(m));
-          })();
-
-          console.log(`[MEVAM] ${c.data} | slot "${fid}" | primários: [${primarios.map((m) => m.nome).join(', ') || 'NENHUM'}] | usando ${primarios.length > 0 ? 'principal' : 'secundária'}`);
-
-          if (candidatos.length === 0) {
-            console.log(`[MEVAM]  → VAZIO`);
-            continue;
-          }
-
-          // Regra 2: rodízio — quem serviu nessa função menos vezes tem prioridade
-          candidatos.sort((a, b) => (contagemFuncao[a.id]?.[fid] || 0) - (contagemFuncao[b.id]?.[fid] || 0));
-          const escolhido = candidatos[0];
-
+          if (primarios.length === 0) continue;
+          primarios.sort((a, b) => {
+            const ca = contagemFuncao[a.id]?.[fid] || 0, cb = contagemFuncao[b.id]?.[fid] || 0;
+            if (ca !== cb) return ca - cb;
+            const la = ultimaVezFuncao[a.id]?.[fid] || '', lb = ultimaVezFuncao[b.id]?.[fid] || '';
+            return la < lb ? -1 : la > lb ? 1 : 0;
+          });
+          const escolhido = primarios[0];
           esc[fid] = escolhido.id;
           jaEscaladosNesteCulto.add(escolhido.id);
           if (!contagemFuncao[escolhido.id]) contagemFuncao[escolhido.id] = {};
           if (!ultimaVezFuncao[escolhido.id]) ultimaVezFuncao[escolhido.id] = {};
           contagemFuncao[escolhido.id][fid] = (contagemFuncao[escolhido.id][fid] || 0) + 1;
           ultimaVezFuncao[escolhido.id][fid] = c.data;
-          console.log(`[MEVAM]  → ${escolhido.nome} (vezes nessa função: ${contagemFuncao[escolhido.id][fid]})`);
+          console.log(`[MEVAM] ${c.data} | slot "${fid}" | principal → ${escolhido.nome}`);
+        }
+
+        // Fase 2 — SECUNDÁRIA: só para membros cuja função principal foi preenchida por outro.
+        //   Rodízio entre secundárias: prefere a de menor contagem; empate → menos recente.
+        const isSecDue = (m, fid) => {
+          const secs = m.secundarias || [];
+          if (secs.length <= 1) return true;
+          const countFid = contagemFuncao[m.id]?.[fid] || 0;
+          const minCount = Math.min(...secs.map((s) => contagemFuncao[m.id]?.[s] || 0));
+          if (countFid > minCount) return false;
+          const tiedSecs = secs.filter((s) => (contagemFuncao[m.id]?.[s] || 0) === minCount);
+          const lastFid = ultimaVezFuncao[m.id]?.[fid] || '';
+          const maxLast = tiedSecs.reduce((acc, s) => { const d = ultimaVezFuncao[m.id]?.[s] || ''; return d > acc ? d : acc; }, '');
+          return lastFid < maxLast || tiedSecs.every((s) => (ultimaVezFuncao[m.id]?.[s] || '') === lastFid);
+        };
+        for (const fid of Object.keys(esc)) {
+          if (Array.isArray(esc[fid])) continue;
+          if (esc[fid] !== null) continue; // já preenchido na Fase 1
+          // "Liberados": disponíveis, têm fid como secundária, e a principal foi preenchida por outro
+          const freedAll = membrosAtivos.filter((m) =>
+            disponivel(m) &&
+            (m.secundarias || []).includes(fid) &&
+            !Array.isArray(esc[m.func]) &&
+            esc[m.func] != null &&
+            esc[m.func] !== m.id
+          );
+          const candidatos = (() => {
+            const devidos = freedAll.filter((m) => isSecDue(m, fid));
+            return devidos.length > 0 ? devidos : freedAll;
+          })();
+          if (candidatos.length === 0) {
+            console.log(`[MEVAM] ${c.data} | slot "${fid}" | VAZIO`);
+            continue;
+          }
+          candidatos.sort((a, b) => {
+            const ca = contagemFuncao[a.id]?.[fid] || 0, cb = contagemFuncao[b.id]?.[fid] || 0;
+            if (ca !== cb) return ca - cb;
+            const la = ultimaVezFuncao[a.id]?.[fid] || '', lb = ultimaVezFuncao[b.id]?.[fid] || '';
+            return la < lb ? -1 : la > lb ? 1 : 0;
+          });
+          const escolhido = candidatos[0];
+          esc[fid] = escolhido.id;
+          jaEscaladosNesteCulto.add(escolhido.id);
+          if (!contagemFuncao[escolhido.id]) contagemFuncao[escolhido.id] = {};
+          if (!ultimaVezFuncao[escolhido.id]) ultimaVezFuncao[escolhido.id] = {};
+          contagemFuncao[escolhido.id][fid] = (contagemFuncao[escolhido.id][fid] || 0) + 1;
+          ultimaVezFuncao[escolhido.id][fid] = c.data;
+          console.log(`[MEVAM] ${c.data} | slot "${fid}" | secundária → ${escolhido.nome}`);
         }
 
         return { ...c, escalados: esc };
