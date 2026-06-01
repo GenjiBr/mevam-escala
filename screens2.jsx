@@ -151,6 +151,7 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
 // Lembrete da próxima escala do membro
 // ────────────────────────────────────────────────────────────
 function LembreteEscala({ culto, usuarioId, state }) {
+  const [showMeusDias, setShowMeusDias] = useState(false);
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const [y, mo, d] = culto.data.split('-').map(Number);
   const dataServico = new Date(y, mo - 1, d);
@@ -253,6 +254,79 @@ function LembreteEscala({ culto, usuarioId, state }) {
           )}
         </div>
       </div>
+
+      {/* botão ver todos os dias */}
+      <button
+        onClick={() => setShowMeusDias(true)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          background: cor + '14', border: 'none', borderTop: `1px solid ${cor}33`,
+          padding: '9px 16px', cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12,
+          fontWeight: 700, color: cor, letterSpacing: 0.2,
+          touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', outline: 'none',
+        }}
+      >
+        <Icon name="calendar" size={12}/> Ver todos os meus dias
+      </button>
+
+      {/* modal: todos os cultos do usuário */}
+      {showMeusDias && (() => {
+        const meusCultos = [...state.cultos]
+          .filter(c => Object.values(c.escalados).some(v =>
+            Array.isArray(v) ? v.includes(usuarioId) : v === usuarioId
+          ))
+          .sort((a, b) => a.data.localeCompare(b.data));
+
+        return ReactDOM.createPortal(
+          <div
+            onClick={() => setShowMeusDias(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .15s' }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ width: '100%', maxWidth: 480, margin: '0 auto', background: MEVAM_COLORS.card, borderRadius: '20px 20px 0 0', border: `1px solid ${MEVAM_COLORS.border}`, maxHeight: '80dvh', display: 'flex', flexDirection: 'column' }}
+            >
+              <div style={{ padding: '10px 0 6px', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: MEVAM_COLORS.border }} />
+              </div>
+              <div style={{ padding: '0 18px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontFamily: 'Manrope', fontWeight: 700, fontSize: 16, color: MEVAM_COLORS.text }}>Meus dias escalados</span>
+                <button onClick={() => setShowMeusDias(false)} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: MEVAM_COLORS.muted }}>
+                  <Icon name="x" size={18}/>
+                </button>
+              </div>
+              <div style={{ overflowY: 'auto', padding: '0 18px 24px', display: 'flex', flexDirection: 'column', gap: 8 }} className="mevam-scroll">
+                {meusCultos.length === 0 ? (
+                  <div style={{ fontFamily: 'Manrope', fontSize: 13, color: MEVAM_COLORS.muted, textAlign: 'center', padding: '24px 0' }}>Nenhum culto escalado.</div>
+                ) : meusCultos.map(c => {
+                  const d = formatBRDate(c.data);
+                  const funcoes = Object.entries(c.escalados)
+                    .filter(([, v]) => Array.isArray(v) ? v.includes(usuarioId) : v === usuarioId)
+                    .map(([fid]) => fid);
+                  const isPast = c.data < new Date().toISOString().slice(0, 10);
+                  return (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: MEVAM_COLORS.bgDeep, border: `1px solid ${isPast ? MEVAM_COLORS.border : c.cor + '55'}`, opacity: isPast ? 0.5 : 1 }}>
+                      <div style={{ width: 42, padding: '5px 0', borderRadius: 10, background: (isPast ? MEVAM_COLORS.border : c.cor) + '22', border: `1px solid ${isPast ? MEVAM_COLORS.border : c.cor}44`, textAlign: 'center', flexShrink: 0 }}>
+                        <div style={{ fontSize: 8.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase' }}>{d.diaSemana.slice(0,3)}</div>
+                        <div style={{ fontSize: 18, color: isPast ? MEVAM_COLORS.muted : MEVAM_COLORS.text, fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, lineHeight: 1 }}>{d.dia}</div>
+                        <div style={{ fontSize: 8.5, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase' }}>{d.mes}</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'Manrope', fontWeight: 600, fontSize: 13, color: MEVAM_COLORS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.titulo}</div>
+                        <div style={{ fontFamily: 'Manrope', fontSize: 11, color: MEVAM_COLORS.muted, marginTop: 1 }}>{c.horario}</div>
+                        <div style={{ marginTop: 5, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {funcoes.map(fid => <FuncBadge key={fid} funcId={fid} size="sm" />)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 }
@@ -273,7 +347,7 @@ function Header({ membro, usuario, onPerfilClick, children }) {
         background: 'none', border: 'none', padding: 0,
         cursor: onPerfilClick ? 'pointer' : 'default', textAlign: 'left',
       }}>
-        <Avatar iniciais={iniciais} tom={membro?.tom || MEVAM_COLORS.accent} size={38} foto={membro?.foto} />
+        <Avatar iniciais={iniciais} tom={membro?.tom || MEVAM_COLORS.accent} size={44} foto={membro?.foto} />
         <div>
           <div style={{ fontSize: 10.5, color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', lineHeight: 1 }}>Olá,</div>
           <div style={{ fontSize: 14, color: MEVAM_COLORS.text, fontFamily: 'Manrope', fontWeight: 700, marginTop: 2 }}>{primeiroNome}</div>
