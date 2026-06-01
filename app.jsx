@@ -328,14 +328,18 @@ useEffectApp(() => {
       return { ...c, escalados: escaladosVazios() }; // futuro: rebuild limpo
     });
 
-    // 6. Contador de carga (apenas cultos passados já contam para o histórico)
-    const contagem = {};
-    for (const m of membrosAtivos) contagem[m.id] = 0;
+    // 6. Contador por função: quantas vezes cada membro serviu em cada função específica
+    //    (somente cultos passados contam como histórico)
+    const contagemFuncao = {};
+    for (const m of membrosAtivos) contagemFuncao[m.id] = {};
     for (const c of existentes) {
-      if (c.data >= hojeISO) continue; // futuros estão zerados; passados contam
-      for (const val of Object.values(c.escalados)) {
+      if (c.data >= hojeISO) continue;
+      for (const [fid, val] of Object.entries(c.escalados)) {
         const ids = Array.isArray(val) ? val : (val ? [val] : []);
-        for (const id of ids) contagem[id] = (contagem[id] || 0) + 1;
+        for (const id of ids) {
+          if (!contagemFuncao[id]) contagemFuncao[id] = {};
+          contagemFuncao[id][fid] = (contagemFuncao[id][fid] || 0) + 1;
+        }
       }
     }
 
@@ -348,34 +352,38 @@ useEffectApp(() => {
         if (c.data < hojeISO) return c;         // passado: intocável
 
         const indispoIds = (state.indispo[c.data] || []).map((i) => i.membroId);
-        const esc = { ...c.escalados }; // todos null após o reset acima
-        const jaEscaladosNesteCulto = new Set(); // evita dupla escala no mesmo culto
+        const esc = { ...c.escalados };
+        const jaEscaladosNesteCulto = new Set();
 
         for (const fid of Object.keys(esc)) {
           if (Array.isArray(esc[fid])) continue; // multi-membro: manual
 
-          // ── REGRA CENTRAL: só entra quem TEM A FUNÇÃO correta ──
-          const candidatos = membrosAtivos.filter((m) =>
-            (m.func === fid || (m.secundarias || []).includes(fid)) &&
-            !indispoIds.includes(m.id) &&
-            !jaEscaladosNesteCulto.has(m.id)
-          );
+          const disponivel = (m) => !indispoIds.includes(m.id) && !jaEscaladosNesteCulto.has(m.id);
 
-          console.log(`[MEVAM] ${c.data} | slot "${fid}" | candidatos: [${candidatos.map((m) => m.nome).join(', ') || 'NENHUM'}]`);
+          // Regra 1: prioridade absoluta para quem tem essa como FUNÇÃO PRINCIPAL
+          const primarios = membrosAtivos.filter((m) => m.func === fid && disponivel(m));
+
+          // Regra 3: só usa secundária se nenhum membro principal está disponível
+          const candidatos = primarios.length > 0
+            ? primarios
+            : membrosAtivos.filter((m) => (m.secundarias || []).includes(fid) && disponivel(m));
+
+          console.log(`[MEVAM] ${c.data} | slot "${fid}" | primários: [${primarios.map((m) => m.nome).join(', ') || 'NENHUM'}] | usando ${primarios.length > 0 ? 'principal' : 'secundária'}`);
 
           if (candidatos.length === 0) {
-            console.log(`[MEVAM]  → VAZIO (nenhum membro com a função "${fid}")`);
+            console.log(`[MEVAM]  → VAZIO`);
             continue;
           }
 
-          // Menor carga → prioridade (desempate pela ordem original = alfabética)
-          candidatos.sort((a, b) => (contagem[a.id] || 0) - (contagem[b.id] || 0));
+          // Regra 2: rodízio — quem serviu nessa função menos vezes tem prioridade
+          candidatos.sort((a, b) => (contagemFuncao[a.id]?.[fid] || 0) - (contagemFuncao[b.id]?.[fid] || 0));
           const escolhido = candidatos[0];
 
           esc[fid] = escolhido.id;
           jaEscaladosNesteCulto.add(escolhido.id);
-          contagem[escolhido.id] = (contagem[escolhido.id] || 0) + 1;
-          console.log(`[MEVAM]  → ${escolhido.nome} (carga total: ${contagem[escolhido.id]})`);
+          if (!contagemFuncao[escolhido.id]) contagemFuncao[escolhido.id] = {};
+          contagemFuncao[escolhido.id][fid] = (contagemFuncao[escolhido.id][fid] || 0) + 1;
+          console.log(`[MEVAM]  → ${escolhido.nome} (vezes nessa função: ${contagemFuncao[escolhido.id][fid]})`);
         }
 
         return { ...c, escalados: esc };
