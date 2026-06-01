@@ -1153,7 +1153,7 @@ function MusicaCard({ musica, isAdmin, onEdit, onDelete, compact = false, tomCul
 }
 
 // ── Modal adicionar / editar música ──
-function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose, onSaved }) {
+function AddMusicaModal({ musica, musicas = [], equipe, usuario, dispatch, onToast, onClose, onSaved }) {
   const isEdit = !!musica;
   const [url, setUrl]             = useState(musica?.url_youtube || '');
   const [nome, setNome]           = useState(musica?.nome || '');
@@ -1178,6 +1178,14 @@ function AddMusicaModal({ musica, equipe, usuario, dispatch, onToast, onClose, o
 
   const handleSalvar = async () => {
     if (!nome.trim()) { onToast('Informe o nome da música.', 'err'); return; }
+    const urlTrimmed = url.trim();
+    if (urlTrimmed) {
+      const novoId = extractYouTubeId(urlTrimmed);
+      if (novoId) {
+        const duplicada = musicas.find((m) => m.id !== musica?.id && extractYouTubeId(m.url_youtube) === novoId);
+        if (duplicada) { onToast(`URL já cadastrada: "${duplicada.nome}"`, 'err'); return; }
+      }
+    }
     setSalvando(true);
     // Fail-safe: desbloqueia o botão após 20s mesmo que o async trave
     const safety = setTimeout(() => {
@@ -1354,8 +1362,8 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
         ))}
       </div>
 
-      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} onSaved={() => { setAddKey(k => k + 1); setShowAdd(true); }} />}
-      {editMusica && <AddMusicaModal key={'edit-' + editMusica.id} musica={editMusica} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
+      {showAdd && <AddMusicaModal key={addKey} musicas={musicas} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setShowAdd(false)} onSaved={() => { setAddKey(k => k + 1); setShowAdd(true); }} />}
+      {editMusica && <AddMusicaModal key={'edit-' + editMusica.id} musica={editMusica} musicas={musicas} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => setEditMusica(null)} />}
     </div>,
     document.body
   );
@@ -1491,7 +1499,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   
           <Btn variant="ghost" full onClick={onClose} style={{ marginTop: 14 }}>Fechar</Btn>
       </div>
-      {showAdd && <AddMusicaModal key={addKey} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { setShowAdd(false); window.location.hash = 'repertorio'; window.location.reload(); }} />}
+      {showAdd && <AddMusicaModal key={addKey} musicas={(state.musicas || []).filter((m) => m.equipe_id === equipe?.id)} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { setShowAdd(false); window.location.hash = 'repertorio'; window.location.reload(); }} />}
     </div>,
     document.body
   );
