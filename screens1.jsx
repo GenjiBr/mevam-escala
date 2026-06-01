@@ -1161,6 +1161,7 @@ function AddMusicaModal({ musica, musicas = [], equipe, usuario, dispatch, onToa
   const [tomOriginal, setTomOrig] = useState(musica?.tom_original || false);
   const [buscando, setBuscando]   = useState(false);
   const [salvando, setSalvando]   = useState(false);
+  const [duplicadaAlert, setDuplicadaAlert] = useState(null); // { nome } da música duplicada
 
   const buscarTitulo = async () => {
     const u = url.trim();
@@ -1183,7 +1184,7 @@ function AddMusicaModal({ musica, musicas = [], equipe, usuario, dispatch, onToa
       const novoId = extractYouTubeId(urlTrimmed);
       if (novoId) {
         const duplicada = musicas.find((m) => m.id !== musica?.id && extractYouTubeId(m.url_youtube) === novoId);
-        if (duplicada) { onToast(`URL já cadastrada: "${duplicada.nome}"`, 'err'); return; }
+        if (duplicada) { setDuplicadaAlert(duplicada); return; }
       }
     }
     setSalvando(true);
@@ -1219,6 +1220,26 @@ function AddMusicaModal({ musica, musicas = [], equipe, usuario, dispatch, onToa
 
   return ReactDOM.createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .15s' }}>
+
+      {/* ── Popup: URL duplicada ── */}
+      {duplicadaAlert && (
+        <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+          <div style={{ width: '100%', maxWidth: 360, background: '#0D1830', border: `1px solid rgba(239,68,68,0.45)`, borderRadius: 20, padding: '24px 22px', boxShadow: '0 20px 60px rgba(0,0,0,0.7)', animation: 'fadeIn .15s' }}>
+            <div style={{ fontSize: 32, textAlign: 'center', marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: 16, color: MEVAM_COLORS.text, textAlign: 'center', marginBottom: 8 }}>
+              Música já no repertório
+            </div>
+            <div style={{ fontFamily: 'Manrope', fontSize: 13.5, color: MEVAM_COLORS.muted, textAlign: 'center', lineHeight: 1.5, marginBottom: 22 }}>
+              Esta URL já está cadastrada como<br/>
+              <strong style={{ color: MEVAM_COLORS.text }}>"{duplicadaAlert.nome}"</strong>
+            </div>
+            <button onClick={() => setDuplicadaAlert(null)} style={{ width: '100%', padding: '13px 0', borderRadius: 14, background: `linear-gradient(135deg, ${MEVAM_COLORS.accent}, #3D5FE0)`, border: 'none', color: '#fff', fontFamily: 'Manrope', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
+
       <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: '20px 20px 32px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)' }}>
         <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 18px' }} />
         <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 18, color: MEVAM_COLORS.text, marginBottom: 18, letterSpacing: -0.3 }}>
