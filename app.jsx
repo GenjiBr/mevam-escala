@@ -329,16 +329,20 @@ useEffectApp(() => {
     });
 
     // 6. Contador por função: quantas vezes cada membro serviu em cada função específica
+    //    + última data em que serviu naquela função (usado como desempate no rodízio de secundárias)
     //    (somente cultos passados contam como histórico)
     const contagemFuncao = {};
-    for (const m of membrosAtivos) contagemFuncao[m.id] = {};
+    const ultimaVezFuncao = {};
+    for (const m of membrosAtivos) { contagemFuncao[m.id] = {}; ultimaVezFuncao[m.id] = {}; }
     for (const c of existentes) {
       if (c.data >= hojeISO) continue;
       for (const [fid, val] of Object.entries(c.escalados)) {
         const ids = Array.isArray(val) ? val : (val ? [val] : []);
         for (const id of ids) {
           if (!contagemFuncao[id]) contagemFuncao[id] = {};
+          if (!ultimaVezFuncao[id]) ultimaVezFuncao[id] = {};
           contagemFuncao[id][fid] = (contagemFuncao[id][fid] || 0) + 1;
+          if (!ultimaVezFuncao[id][fid] || c.data > ultimaVezFuncao[id][fid]) ultimaVezFuncao[id][fid] = c.data;
         }
       }
     }
@@ -364,9 +368,26 @@ useEffectApp(() => {
           const primarios = membrosAtivos.filter((m) => m.func === fid && disponivel(m));
 
           // Regra 3: só usa secundária se nenhum membro principal está disponível
-          const candidatos = primarios.length > 0
-            ? primarios
-            : membrosAtivos.filter((m) => (m.secundarias || []).includes(fid) && disponivel(m));
+          //   Para membros com múltiplas secundárias, rodízio por função menos servida;
+          //   em empate de contagem, prefere a função NÃO usada mais recentemente.
+          //   Se nenhum candidato "devido" disponível, aceita qualquer (nunca deixa vazio sem motivo).
+          const candidatos = (() => {
+            if (primarios.length > 0) return primarios;
+            const secsAll = membrosAtivos.filter((m) => (m.secundarias || []).includes(fid) && disponivel(m));
+            const secsDue = secsAll.filter((m) => {
+              const secs = m.secundarias || [];
+              if (secs.length <= 1) return true;
+              const countFid = contagemFuncao[m.id]?.[fid] || 0;
+              const minCount = Math.min(...secs.map((s) => contagemFuncao[m.id]?.[s] || 0));
+              if (countFid > minCount) return false;
+              // Empate de contagem: incluir `fid` só se não foi a mais recente entre as empatadas
+              const tiedSecs = secs.filter((s) => (contagemFuncao[m.id]?.[s] || 0) === minCount);
+              const lastFid = ultimaVezFuncao[m.id]?.[fid] || '';
+              const maxLastAmongTied = Math.max(...tiedSecs.map((s) => ultimaVezFuncao[m.id]?.[s] || ''));
+              return lastFid < maxLastAmongTied || tiedSecs.every((s) => (ultimaVezFuncao[m.id]?.[s] || '') === lastFid);
+            });
+            return secsDue.length > 0 ? secsDue : secsAll;
+          })();
 
           console.log(`[MEVAM] ${c.data} | slot "${fid}" | primários: [${primarios.map((m) => m.nome).join(', ') || 'NENHUM'}] | usando ${primarios.length > 0 ? 'principal' : 'secundária'}`);
 
@@ -382,7 +403,9 @@ useEffectApp(() => {
           esc[fid] = escolhido.id;
           jaEscaladosNesteCulto.add(escolhido.id);
           if (!contagemFuncao[escolhido.id]) contagemFuncao[escolhido.id] = {};
+          if (!ultimaVezFuncao[escolhido.id]) ultimaVezFuncao[escolhido.id] = {};
           contagemFuncao[escolhido.id][fid] = (contagemFuncao[escolhido.id][fid] || 0) + 1;
+          ultimaVezFuncao[escolhido.id][fid] = c.data;
           console.log(`[MEVAM]  → ${escolhido.nome} (vezes nessa função: ${contagemFuncao[escolhido.id][fid]})`);
         }
 
