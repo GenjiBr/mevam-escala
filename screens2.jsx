@@ -630,7 +630,7 @@ if (!m) continue;
     if (ids.length === 0) cobertura.push({ funcId: fid, membro: null, indispo: false });
   }
 
-  const slotsVazios = cobertura.filter((x) => !x.membro).length;
+  const slotsVazios = cobertura.filter((x) => !x.membro && x.funcId !== 'convidado').length;
   const meu = cobertura.some((x) => x.membro && x.membro.id === usuarioId);
 
   const handleTomChange = async (musicaId, novoTom) => {
@@ -702,7 +702,7 @@ if (!m) continue;
           {(() => {
             const sorted = [...cobertura].sort((a, b) => (b.membro ? 1 : 0) - (a.membro ? 1 : 0));
             const preenchidos = sorted.filter(x => x.membro);
-            const vaziosArr = sorted.filter(x => !x.membro);
+            const vaziosArr = sorted.filter(x => !x.membro && x.funcId !== 'convidado');
             const renderSlot = (x, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {/* ── botão principal do slot ── */}
