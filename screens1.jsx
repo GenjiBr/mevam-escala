@@ -993,7 +993,7 @@ const navBtnStyle = { width: 30, height: 30, borderRadius: 8, background: MEVAM_
 // ════════════════════════════════════════════════════════════
 // MÚSICAS — utilitários
 // ════════════════════════════════════════════════════════════
-const TONS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const TONS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'Bb', 'B'];
 
 // Suporta legado string[] e novo formato {id, tom}[]
 function normMusicas(musicas) {
