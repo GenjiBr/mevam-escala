@@ -44,12 +44,8 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
     return { semanaLabel: label, isoInicio: iI, isoFim: iF, cultosNaSemana: filtered };
   }, [state.cultos, weekOffset]);
 
-  const bgStyle = membro?.background_url
-    ? { backgroundImage: `linear-gradient(rgba(5,8,20,0.72), rgba(5,8,20,0.88)), url(${membro.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }
-    : {};
-
   return (
-    <div style={{ ...screenWrap, ...bgStyle }}>
+    <div style={screenWrap}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <div style={{ display: 'flex', gap: 6 }}>
           <Btn variant="ghost" icon={<span style={{ fontSize: 14, lineHeight: 1 }}>♪</span>} onClick={() => { setShowMusicas(true); window.location.hash = 'repertorio'; }} style={{ padding: '7px 8px', fontSize: 10.5, gap: 4 }}>Repertório</Btn>

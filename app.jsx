@@ -708,10 +708,15 @@ useEffectApp(() => {
     admin:           <AdminScreen state={state} dispatch={dispatch} usuario={usuario} equipe={equipe} onToast={showToast} onGerarEscala={handleGerarEscala} onAddCultoManual={handleAddCultoManual} />,
   };
 
+  const membroAtual = (state.membros || []).find((m) => m.id === usuario.id);
+  const bgUrl = membroAtual?.background_url;
+
   return (
     <div style={{
       minHeight: '100dvh', position: 'relative',
-      background: `radial-gradient(140% 70% at 50% -10%, rgba(91,127,255,0.18), rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
+      background: bgUrl
+        ? `linear-gradient(rgba(5,8,20,0.72), rgba(5,8,20,0.88)), url(${bgUrl}) center/cover no-repeat fixed`
+        : `radial-gradient(140% 70% at 50% -10%, rgba(91,127,255,0.18), rgba(4,8,26,0) 55%), ${MEVAM_COLORS.bgDeep}`,
       fontFamily: 'Manrope, system-ui, sans-serif',
     }}>
       <div style={{
