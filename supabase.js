@@ -262,7 +262,7 @@ window.sbUploadAvatarPessoal = async (userId, arquivo) => {
 window.sbListAvataresPredefinidos = async () => {
   const { data, error } = await SB.storage
     .from('avatars-predefinidos')
-    .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+    .list('', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
   if (error || !data) { console.error('[MEVAM] sbListAvataresPredefinidos:', error?.message); return []; }
   return data
     .filter((f) => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name))

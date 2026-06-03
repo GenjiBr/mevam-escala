@@ -2579,7 +2579,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                 Nenhuma imagem encontrada.
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18, overflowY: 'auto', maxHeight: '60vh', scrollBehavior: 'smooth' }}>
                 {avataresList.map((url, i) => (
                   <button
                     key={i}
@@ -2600,7 +2600,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
             <button
               onClick={() => uploadInputRef.current?.click()}
               disabled={uploadando}
-              style={{ width: '100%', padding: '13px 16px', borderRadius: 14, marginBottom: 8, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}55`, fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: '#A8BBFF', cursor: uploadando ? 'default' : 'pointer', opacity: uploadando ? 0.6 : 1 }}
+              style={{ display: 'none', width: '100%', padding: '13px 16px', borderRadius: 14, marginBottom: 8, background: MEVAM_COLORS.accentSoft, border: `1px solid ${MEVAM_COLORS.accent}55`, fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: '#A8BBFF', cursor: uploadando ? 'default' : 'pointer', opacity: uploadando ? 0.6 : 1 }}
             >
               {uploadando ? 'Enviando...' : '📁 Enviar minha foto'}
             </button>
