@@ -269,6 +269,19 @@ window.sbListAvataresPredefinidos = async () => {
     .map((f) => `${SUPABASE_URL}/storage/v1/object/public/avatars-predefinidos/${encodeURIComponent(f.name)}`);
 };
 
+// Bucket público "backgrounds" — criar no Supabase Storage com as mesmas
+// políticas do bucket "avatars-predefinidos" (public read, autenticado write).
+// SQL para adicionar a coluna: ALTER TABLE public.membros ADD COLUMN IF NOT EXISTS background_url TEXT;
+window.sbListBackgrounds = async () => {
+  const { data, error } = await SB.storage
+    .from('backgrounds')
+    .list('', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
+  if (error || !data) { console.error('[MEVAM] sbListBackgrounds:', error?.message); return []; }
+  return data
+    .filter((f) => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name))
+    .map((f) => `${SUPABASE_URL}/storage/v1/object/public/backgrounds/${encodeURIComponent(f.name)}`);
+};
+
 /* ─────────────────────────────────────────────────
    Historico administrativo
 ───────────────────────────────────────────────── */

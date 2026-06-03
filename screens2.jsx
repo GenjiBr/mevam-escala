@@ -44,8 +44,12 @@ function EscalaScreen({ state, dispatch, usuario, equipe, onToast, onPerfilClick
     return { semanaLabel: label, isoInicio: iI, isoFim: iF, cultosNaSemana: filtered };
   }, [state.cultos, weekOffset]);
 
+  const bgStyle = membro?.background_url
+    ? { backgroundImage: `linear-gradient(rgba(5,8,20,0.72), rgba(5,8,20,0.88)), url(${membro.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }
+    : {};
+
   return (
-    <div style={screenWrap}>
+    <div style={{ ...screenWrap, ...bgStyle }}>
       <Header membro={membro} usuario={usuario} onPerfilClick={onPerfilClick}>
         <div style={{ display: 'flex', gap: 6 }}>
           <Btn variant="ghost" icon={<span style={{ fontSize: 14, lineHeight: 1 }}>♪</span>} onClick={() => { setShowMusicas(true); window.location.hash = 'repertorio'; }} style={{ padding: '7px 8px', fontSize: 10.5, gap: 4 }}>Repertório</Btn>
@@ -2385,6 +2389,11 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avataresList, setAvataresList] = useState([]);
   const [loadingAvatares, setLoadingAvatares] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [bgList, setBgList] = useState([]);
+  const [loadingBg, setLoadingBg] = useState(false);
+  const [bgUrl, setBgUrl] = useState(membro.background_url || null);
   const uploadInputRef = useRef(null);
 
   // ── Carrega foto ao abrir perfil e sincroniza quando state.membros muda ──
@@ -2420,6 +2429,27 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
       onToast('Erro: ' + (err.message || 'Tente novamente'), 'err');
     } finally {
       setUploadando(false);
+    }
+  };
+
+  const handleAbrirBgPicker = async () => {
+    setShowBgPicker(true);
+    setLoadingBg(true);
+    const lista = await sbListBackgrounds();
+    setBgList(lista);
+    setLoadingBg(false);
+  };
+
+  const handleSelecionarBackground = async (url) => {
+    setShowBgPicker(false);
+    setBgUrl(url);
+    try {
+      await sbUpdateMembro(usuario.id, { background_url: url });
+      await dispatch({ type: 'update_membro', id: usuario.id, updates: { background_url: url } });
+      onToast(url ? 'Plano de fundo atualizado!' : 'Plano de fundo removido.', 'ok');
+    } catch (err) {
+      setBgUrl(membro.background_url || null);
+      onToast('Erro: ' + (err.message || 'Tente novamente'), 'err');
     }
   };
 
@@ -2616,6 +2646,41 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
         document.body
       )}
 
+      {/* ── Modal: seletor de plano de fundo ── */}
+      {showBgPicker && ReactDOM.createPortal(
+        <div onClick={() => setShowBgPicker(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', animation: 'fadeIn .2s' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', background: '#0A1326', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: '20px 18px 36px', border: `1px solid ${MEVAM_COLORS.borderHi}`, borderBottom: 'none', animation: 'slideUp .3s cubic-bezier(.2,.9,.3,1.1)' }}>
+            <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.2)', margin: '0 auto 18px' }} />
+            <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 600, fontSize: 17, color: MEVAM_COLORS.text, textAlign: 'center', marginBottom: 18, letterSpacing: -0.3 }}>Plano de Fundo</div>
+            {loadingBg ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 999, border: `3px solid ${MEVAM_COLORS.accent}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+              </div>
+            ) : bgList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: MEVAM_COLORS.mutedSoft, fontFamily: 'Manrope', fontSize: 13 }}>Nenhuma imagem encontrada no bucket "backgrounds".</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18, overflowY: 'auto', maxHeight: '60vh', scrollBehavior: 'smooth' }}>
+                {bgList.map((url, i) => (
+                  <button key={i} onClick={() => handleSelecionarBackground(url)} style={{ background: 'none', border: `2px solid ${url === bgUrl ? MEVAM_COLORS.accent : MEVAM_COLORS.border}`, borderRadius: 14, padding: 4, cursor: 'pointer', transition: 'border-color .15s', aspectRatio: '16/9' }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = MEVAM_COLORS.accent}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = url === bgUrl ? MEVAM_COLORS.accent : MEVAM_COLORS.border}
+                  >
+                    <img src={url} alt="" style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
+              </div>
+            )}
+            {bgUrl && (
+              <button onClick={() => handleSelecionarBackground(null)} style={{ width: '100%', padding: '13px 16px', borderRadius: 14, marginBottom: 8, background: 'rgba(239,68,68,0.08)', border: `1px solid rgba(239,68,68,0.3)`, fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.danger, cursor: 'pointer' }}>
+                🗑 Remover plano de fundo
+              </button>
+            )}
+            <button onClick={() => setShowBgPicker(false)} style={{ width: '100%', padding: '13px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: `1px solid ${MEVAM_COLORS.border}`, fontFamily: 'Manrope', fontSize: 14, fontWeight: 600, color: MEVAM_COLORS.muted, cursor: 'pointer' }}>Cancelar</button>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
         {/* ── Dados pessoais ── */}
@@ -2627,18 +2692,27 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
                 placeholder="Seu nome completo" style={inputStyle} />
             </Field>
             <div>
-              <div style={{ fontSize: 11, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Cor do avatar</div>
-              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
-                {cores.map((c) => (
-                  <button key={c} onClick={() => setTomSel(c)} style={{
-                    width: 22, height: 22, borderRadius: 999, flexShrink: 0,
-                    background: c, cursor: 'pointer', transition: 'all .15s',
-                    border: tomSel === c ? `2.5px solid #fff` : '2px solid transparent',
-                    boxShadow: tomSel === c ? `0 0 0 1.5px ${c}, 0 0 8px ${c}88` : 'none',
-                    transform: tomSel === c ? 'scale(1.2)' : 'scale(1)',
-                  }} />
-                ))}
+              <div style={{ display: 'flex', gap: 8, marginBottom: showColorPicker ? 12 : 0 }}>
+                <button onClick={() => setShowColorPicker(v => !v)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 10px', borderRadius: 12, background: showColorPicker ? MEVAM_COLORS.accentSoft : 'rgba(255,255,255,0.04)', border: `1px solid ${showColorPicker ? MEVAM_COLORS.accent + '55' : MEVAM_COLORS.border}`, cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, color: showColorPicker ? '#A8BBFF' : MEVAM_COLORS.muted }}>
+                  🎨 Cor do Avatar
+                </button>
+                <button onClick={handleAbrirBgPicker} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 10px', borderRadius: 12, background: bgUrl ? MEVAM_COLORS.accentSoft : 'rgba(255,255,255,0.04)', border: `1px solid ${bgUrl ? MEVAM_COLORS.accent + '55' : MEVAM_COLORS.border}`, cursor: 'pointer', fontFamily: 'Manrope', fontSize: 12.5, fontWeight: 600, color: bgUrl ? '#A8BBFF' : MEVAM_COLORS.muted }}>
+                  🖼 Plano de Fundo
+                </button>
               </div>
+              {showColorPicker && (
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+                  {cores.map((c) => (
+                    <button key={c} onClick={() => setTomSel(c)} style={{
+                      width: 22, height: 22, borderRadius: 999, flexShrink: 0,
+                      background: c, cursor: 'pointer', transition: 'all .15s',
+                      border: tomSel === c ? `2.5px solid #fff` : '2px solid transparent',
+                      boxShadow: tomSel === c ? `0 0 0 1.5px ${c}, 0 0 8px ${c}88` : 'none',
+                      transform: tomSel === c ? 'scale(1.2)' : 'scale(1)',
+                    }} />
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         </div>
