@@ -2509,6 +2509,30 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
     try {
       await dispatch({ type: 'update_membro', id: usuario.id, updates: { nome: nome.trim(), iniciais: ini, func: funcPrincipal, secundarias: secundariasLimpas, tom: tomSel, foto } });
       onUpdateUsuario({ nome: nome.trim() });
+
+      // Se função principal mudou → remover dos slots da função ANTIGA em cultos futuros
+      const funcAntiga = membro.func;
+      if (funcAntiga && funcAntiga !== funcPrincipal) {
+        const hojeISO = new Date().toISOString().slice(0, 10);
+        const cultosMod = [];
+        for (const c of state.cultos) {
+          if (c.data < hojeISO) continue;
+          const val = c.escalados?.[funcAntiga];
+          const ids = Array.isArray(val) ? val : (val ? [val] : []);
+          if (!ids.includes(usuario.id)) continue;
+          const novosEscalados = { ...c.escalados };
+          novosEscalados[funcAntiga] = Array.isArray(val)
+            ? val.filter((id) => id !== usuario.id)
+            : null;
+          cultosMod.push({ ...c, escalados: novosEscalados });
+        }
+        if (cultosMod.length > 0) {
+          const novosCultos = state.cultos.map((c) => cultosMod.find((cm) => cm.id === c.id) || c);
+          await dispatch({ type: 'set_cultos', cultos: novosCultos });
+          for (const c of cultosMod) await sbUpsertCulto(c);
+        }
+      }
+
       onToast('Perfil atualizado com sucesso!', 'ok');
       setSaveState('saved');
       setTimeout(() => setSaveState('idle'), 2000);
