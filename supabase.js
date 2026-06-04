@@ -25,6 +25,7 @@ window.sbGetMembros = async () => {
     perfil: m.perfil || 'membro',
     email: m.email || null,
     equipe_id: m.equipe_id || null,
+    background_url: m.background_url || null,
   }));
 };
 
