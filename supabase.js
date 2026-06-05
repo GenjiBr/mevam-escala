@@ -6,7 +6,12 @@
 const SUPABASE_URL  = 'https://jjjzrfpwrxhbndjtugyk.supabase.co';  // ✓
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqanpyZnB3cnhoYm5kanR1Z3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzkyOTcsImV4cCI6MjA5NTMxNTI5N30.S5ey-183J9QuBlyrHqduySYTOA7tcbfvjC-AZrBGipk'; // ✓
 
-window.SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+window.SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    detectSessionInUrl: true,
+    flowType: 'implicit',
+  },
+});
 
 /* ─────────────────────────────────────────────────
    Leitura
