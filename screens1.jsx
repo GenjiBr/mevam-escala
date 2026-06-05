@@ -340,32 +340,23 @@ function RedefinirSenhaScreen({ onConcluido, onToast }) {
   const [sessionPronta, setSessionPronta] = useState(false);
 
   useEffect(() => {
-    const processarToken = async () => {
-      try {
-        // Supabase pode já ter processado o token automaticamente
-        const { data: { session } } = await SB.auth.getSession();
-        if (session) { setSessionPronta(true); return; }
-
-        // Extrair tokens do hash manualmente
-        const params = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = params.get('access_token');
-        const type = params.get('type');
-
-        if (accessToken && type === 'recovery') {
-          const { error } = await SB.auth.setSession({
-            access_token: accessToken,
-            refresh_token: params.get('refresh_token') || accessToken,
-          });
-          if (error) throw error;
-          setSessionPronta(true);
-        } else {
-          throw new Error('Token não encontrado no link');
-        }
-      } catch (e) {
-        setErr('Link inválido ou expirado: ' + (e.message || 'tente novamente'));
+    const { data: { subscription } } = SB.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setSessionPronta(true);
+        setErr('');
+      } else if (event === 'SIGNED_IN' && session) {
+        setSessionPronta(true);
       }
+    });
+
+    const timer = setTimeout(() => {
+      setErr('Link inválido ou expirado. Solicite um novo e-mail de recuperação.');
+    }, 8000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
     };
-    processarToken();
   }, []);
 
   const handleSalvar = async () => {
