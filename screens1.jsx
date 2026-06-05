@@ -1199,13 +1199,11 @@ function AddMusicaModal({ musica, musicas = [], equipe, usuario, dispatch, onToa
         await dispatch({ type: 'update_musica', id: musica.id, updates: payload });
         onToast('Música atualizada!', 'ok');
       } else {
-        const eqId = equipe?.id;
-        if (!eqId) throw new Error('Equipe não identificada — feche e reabra a tela de músicas.');
         const musicaCriada = await Promise.race([
-          sbInsertMusica({ ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null }),
+          sbInsertMusica({ ...payload, equipe_id: null, adicionado_por: usuario?.id || null }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao salvar. Verifique sua conexão.')), 8000)),
         ]);
-        await dispatch({ type: 'add_musica', musica: musicaCriada || { ...payload, equipe_id: eqId, adicionado_por: usuario?.id || null } });
+        await dispatch({ type: 'add_musica', musica: musicaCriada || { ...payload, equipe_id: null, adicionado_por: usuario?.id || null } });
         onToast('Música adicionada ao repertório!', 'ok');
       }
       isEdit ? onClose() : (onSaved ? onSaved() : onClose());
@@ -1309,12 +1307,12 @@ function MusicasSheet({ state, dispatch, usuario, equipe, onToast, onClose }) {
 
   useEffect(() => {
     if (!equipe?.id) return;
-    sbGetMusicas(equipe.id).then((musicas) => dispatch({ type: 'merge_musicas', musicas }));
+    sbGetMusicas().then((musicas) => dispatch({ type: 'merge_musicas', musicas }));
   }, [equipe?.id]);
 
   const musicas = useMemo(() =>
-    (state.musicas || []).filter((m) => m.equipe_id === equipe?.id),
-    [state.musicas, equipe?.id]
+    (state.musicas || []),
+    [state.musicas]
   );
   const filtradas = useMemo(() => {
     const q = busca.toLowerCase();
@@ -1419,7 +1417,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
     const q = busca.toLowerCase();
     const naEscala = new Set(meta.map(item => item.id));
     return (state.musicas || [])
-      .filter((m) => m.equipe_id === equipe?.id && !naEscala.has(m.id))
+      .filter((m) => !naEscala.has(m.id))
       .filter((m) => !q || m.nome.toLowerCase().includes(q) || (m.tom || '').toLowerCase().includes(q));
   }, [state.musicas, equipe?.id, meta, busca]);
 
@@ -1520,7 +1518,7 @@ function CultoMusicasSheet({ culto, state, equipe, usuario, dispatch, onToast, o
   
           <Btn variant="ghost" full onClick={onClose} style={{ marginTop: 14 }}>Fechar</Btn>
       </div>
-      {showAdd && <AddMusicaModal key={addKey} musicas={(state.musicas || []).filter((m) => m.equipe_id === equipe?.id)} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { setShowAdd(false); window.location.hash = 'repertorio'; window.location.reload(); }} />}
+      {showAdd && <AddMusicaModal key={addKey} musicas={state.musicas || []} equipe={equipe} usuario={usuario} dispatch={dispatch} onToast={onToast} onClose={() => { setShowAdd(false); window.location.hash = 'repertorio'; window.location.reload(); }} />}
     </div>,
     document.body
   );

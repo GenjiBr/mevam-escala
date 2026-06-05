@@ -611,7 +611,7 @@ useEffectApp(() => {
   /* ── Carrega repertório quando a equipe muda ── */
   useEffectApp(() => {
     if (!equipe?.id) { _dispatch({ type: 'set_musicas', musicas: [] }); return; }
-    sbGetMusicas(equipe.id).then((musicas) => _dispatch({ type: 'merge_musicas', musicas }));
+    sbGetMusicas().then((musicas) => _dispatch({ type: 'merge_musicas', musicas }));
   }, [equipe?.id]);
 
   /* ── Carrega historico administrativo ── */

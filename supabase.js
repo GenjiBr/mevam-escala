@@ -209,8 +209,8 @@ window.sbGetEquipe = async (id) => {
 /* ─────────────────────────────────────────────────
    Repertório de músicas
 ───────────────────────────────────────────────── */
-window.sbGetMusicas = async (equipeId) => {
-  const { data, error } = await SB.from('musicas').select('*').eq('equipe_id', equipeId).order('criado_em');
+window.sbGetMusicas = async () => {
+  const { data, error } = await SB.from('musicas').select('*').order('nome');
   if (error) { console.error('sbGetMusicas:', error.message); return []; }
   return data || [];
 };
