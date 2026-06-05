@@ -340,17 +340,28 @@ function RedefinirSenhaScreen({ onConcluido, onToast }) {
   const [sessionPronta, setSessionPronta] = useState(false);
 
   useEffect(() => {
-    // Verifica se já existe sessão ativa (token já processado pelo cliente Supabase)
-    SB.auth.getSession().then(({ data }) => {
-      if (data?.session) setSessionPronta(true);
-    });
-    // Escuta o evento PASSWORD_RECOVERY caso ainda não tenha disparado
-    const { data: { subscription } } = SB.auth.onAuthStateChange((event, session) => {
-      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
-        setSessionPronta(true);
+    const processarToken = async () => {
+      try {
+        const params = new URLSearchParams(window.location.hash.replace('#', ''));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error } = await SB.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) throw error;
+          setSessionPronta(true);
+        } else {
+          const { data: { session } } = await SB.auth.getSession();
+          if (session) {
+            setSessionPronta(true);
+          } else {
+            setErr('Link inválido ou expirado. Solicite um novo e-mail de recuperação.');
+          }
+        }
+      } catch (e) {
+        setErr('Link inválido ou expirado: ' + (e.message || 'tente novamente'));
       }
-    });
-    return () => subscription.unsubscribe();
+    };
+    processarToken();
   }, []);
 
   const handleSalvar = async () => {
