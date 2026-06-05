@@ -187,7 +187,10 @@ function App() {
   return ['escala', 'disponibilidade', 'membros', 'admin', 'perfil'].includes(hash) ? hash : 'escala';
 });
 useEffectApp(() => {
-  if (window.location.hash !== '#repertorio') {
+  const hash = window.location.hash;
+  if (hash !== '#repertorio' &&
+      !hash.includes('type=recovery') &&
+      !hash.includes('access_token')) {
     window.location.hash = tab;
   }
 }, [tab]);
