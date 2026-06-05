@@ -337,11 +337,33 @@ function RedefinirSenhaScreen({ onConcluido, onToast }) {
   const [confirmSenha, setConfirmSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [sessionPronta, setSessionPronta] = useState(false);
+
+  useEffect(() => {
+    // Verifica se já existe sessão ativa (token já processado pelo cliente Supabase)
+    SB.auth.getSession().then(({ data }) => {
+      if (data?.session) setSessionPronta(true);
+    });
+    // Escuta o evento PASSWORD_RECOVERY caso ainda não tenha disparado
+    const { data: { subscription } } = SB.auth.onAuthStateChange((event, session) => {
+      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
+        setSessionPronta(true);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSalvar = async () => {
     if (novaSenha.length < 6) { setErr('A senha precisa ter no mínimo 6 caracteres'); return; }
     if (novaSenha !== confirmSenha) { setErr('As senhas não coincidem'); return; }
     setLoading(true); setErr('');
+    // Confirma sessão ativa antes de atualizar para evitar "Auth session missing"
+    const { data: { session } } = await SB.auth.getSession();
+    if (!session) {
+      setLoading(false);
+      setErr('Link expirado ou inválido. Solicite um novo e-mail de recuperação.');
+      return;
+    }
     const { error } = await SB.auth.updateUser({ password: novaSenha });
     setLoading(false);
     if (error) {
@@ -420,7 +442,13 @@ function RedefinirSenhaScreen({ onConcluido, onToast }) {
             {err && (
               <div style={{ color: MEVAM_COLORS.danger, fontSize: 12.5, fontFamily: 'Manrope', lineHeight: 1.4 }}>{err}</div>
             )}
-            <Btn variant="accent" full onClick={handleSalvar} disabled={loading} style={{ marginTop: 2 }}>
+            {!sessionPronta && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: MEVAM_COLORS.muted, fontFamily: 'Manrope', fontSize: 12.5 }}>
+                <div style={{ width: 14, height: 14, borderRadius: 999, border: `2px solid ${MEVAM_COLORS.accent}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+                Verificando link de recuperação...
+              </div>
+            )}
+            <Btn variant="accent" full onClick={handleSalvar} disabled={loading || !sessionPronta} style={{ marginTop: 2, opacity: sessionPronta ? 1 : 0.45 }}>
               {loading ? 'Salvando...' : 'Salvar nova senha'}
             </Btn>
           </div>
