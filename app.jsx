@@ -195,7 +195,10 @@ useEffectApp(() => {
   const [toast, setToast] = useStateApp({ msg: '', kind: 'ok' });
   const [authLoading, setAuthLoading] = useStateApp(true);
   const [equipe, setEquipe] = useStateApp(null);
-  const [recuperandoSenha, setRecuperandoSenha] = useStateApp(false);
+  // Detecta link de reset de senha no hash antes de qualquer lógica de auth
+  const [recuperandoSenha, setRecuperandoSenha] = useStateApp(
+    () => window.location.hash.includes('type=recovery')
+  );
 
   const showToast = (msg, kind = 'ok') => setToast({ msg, kind });
 
@@ -519,6 +522,8 @@ useEffectApp(() => {
     let ativo = true;
     withTimeout(SB.auth.getSession(), 5000, 'Verificacao de sessao')
       .then(async ({ data }) => {
+        // Em fluxo de reset de senha, não carregar o usuário — manter na tela de redefinição
+        if (window.location.hash.includes('type=recovery')) return;
         await carregarUsuarioDaSessao(data?.session);
       })
       .catch((e) => {
@@ -693,7 +698,7 @@ useEffectApp(() => {
   if (recuperandoSenha) return (
     <RedefinirSenhaScreen
       onToast={showToast}
-      onConcluido={() => { setRecuperandoSenha(false); setUsuario(null); }}
+      onConcluido={() => { window.location.hash = ''; setRecuperandoSenha(false); setUsuario(null); }}
     />
   );
   if (!usuario)   return <LoginScreen />;
