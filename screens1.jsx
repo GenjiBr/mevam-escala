@@ -350,7 +350,10 @@ function RedefinirSenhaScreen({ onConcluido, onToast }) {
     };
 
     // 1. Tenta ler o hash imediatamente (antes do SDK consumir)
-    const params = new URLSearchParams(window.location.hash.substring(1));
+    // O hash pode ter formato duplo "#escala#access_token=..." — pega tudo após o ÚLTIMO #
+    const fullHash = window.location.hash;
+    const lastHash = fullHash.substring(fullHash.lastIndexOf('#') + 1);
+    const params = new URLSearchParams(lastHash);
     const accessToken = params.get('access_token');
     const type = params.get('type');
 
