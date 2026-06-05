@@ -340,23 +340,41 @@ function RedefinirSenhaScreen({ onConcluido, onToast }) {
   const [sessionPronta, setSessionPronta] = useState(false);
 
   useEffect(() => {
+    let settled = false;
+
+    const settle = (pronta, erro) => {
+      if (settled) return;
+      settled = true;
+      if (pronta) { setSessionPronta(true); setErr(''); }
+      else setErr(erro || 'Link inválido ou expirado. Solicite um novo e-mail de recuperação.');
+    };
+
+    // 1. Tenta ler o hash imediatamente (antes do SDK consumir)
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = params.get('access_token');
+    const type = params.get('type');
+
+    if (accessToken && type === 'recovery') {
+      SB.auth.setSession({
+        access_token: accessToken,
+        refresh_token: params.get('refresh_token') || accessToken,
+      }).then(({ error }) => {
+        if (error) settle(false, 'Link inválido ou expirado: ' + error.message);
+        else settle(true);
+      });
+    }
+
+    // 2. Listener como fallback (para quando o SDK processa o hash primeiro)
     const { data: { subscription } } = SB.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setSessionPronta(true);
-        setErr('');
-      } else if (event === 'SIGNED_IN' && session) {
-        setSessionPronta(true);
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        settle(true);
       }
     });
 
-    const timer = setTimeout(() => {
-      setErr('Link inválido ou expirado. Solicite um novo e-mail de recuperação.');
-    }, 8000);
+    // 3. Timeout de 12s
+    const timer = setTimeout(() => settle(false), 12000);
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timer);
-    };
+    return () => { subscription.unsubscribe(); clearTimeout(timer); };
   }, []);
 
   const handleSalvar = async () => {
