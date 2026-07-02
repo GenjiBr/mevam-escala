@@ -40,7 +40,10 @@ window.sbGetCultos = async () => {
   return (data || []).map((c) => ({
     ...c,
     titulo: c.titulo === 'Culto da Família' ? 'Celebração da Família' : c.titulo,
-    escalados: c.escalados || {},
+    escalados: {
+      ...Object.fromEntries(Object.keys(window.FUNCOES || {}).map((k) => [k, null])),
+      ...(c.escalados || {}),
+    },
     observacao: c.observacao || '',
   }));
 };
