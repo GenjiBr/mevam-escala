@@ -1297,7 +1297,7 @@ function MembrosScreen({ state, dispatch, usuario, equipe, onToast }) {
       {/* filtros funções */}
       <div style={{ padding: '12px 18px 0', display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <Chip active={filtro === 'todos'} onClick={() => setFiltro('todos')}>Todos</Chip>
-        {Object.entries(window.FUNCOES).map(([fid, f]) => (
+        {Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'vocal_backing_2').map(([fid, f]) => (
           <Chip key={fid} active={filtro === fid} onClick={() => setFiltro(fid)} color={f.color}>
             <FuncDot funcId={fid} size={6}/> {f.label}
           </Chip>
@@ -1359,7 +1359,7 @@ function MembroDetail({ membro, state, dispatch, usuario, onToast, onClose }) {
   const [funcsSecundarias, setFuncsSecundarias] = useState(membro.secundarias || []);
 
   const cultos = state.cultos.filter((c) => Object.values(c.escalados).flat().includes(membro.id));
-  const todasFuncoes = Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'convidado');
+  const todasFuncoes = Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'convidado' && fid !== 'vocal_backing_2');
 
   const toggleSecundaria = (fid) => {
     if (fid === funcPrincipal) return;
@@ -2491,7 +2491,7 @@ function PerfilScreen({ state, dispatch, usuario, onToast, onLogout, onUpdateUsu
   };
 
   const cores = ['#5B7FFF','#F39C12','#E67E22','#8E44AD','#E74C3C','#27AE60','#2980B9','#1ABC9C','#EC4899','#3B6FB5','#EF4444','#6366F1'];
-  const todasFuncoes = Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'convidado');
+  const todasFuncoes = Object.entries(window.FUNCOES).filter(([fid]) => fid !== 'convidado' && fid !== 'vocal_backing_2');
   const iniciais = (n) => n.trim().split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
   const toggleSecundaria = (fid) => {
