@@ -455,7 +455,7 @@ useEffectApp(() => {
       const dow = new Date(c.data + 'T00:00:00').getDay();
       return dow !== 5 && dow !== 6;
     }).length;
-    const label = semanas <= 4 ? '1 mês' : semanas <= 13 ? '3 meses' : semanas <= 26 ? '6 meses' : '1 ano';
+    const label = semanas <= 4 ? '1 mês' : '2 meses';
     showToast(`Escala gerada (${label}) — ${gerados} cultos!`, 'ok');
   }, [state.cultos, state.membros, state.indispo, equipe]);
 
@@ -595,14 +595,42 @@ useEffectApp(() => {
       _dispatch({ type: 'set_loading', value: true });
       const [membros, cultos, indispo] = await Promise.all([sbGetMembros(), sbGetCultos(), sbGetIndispo()]);
       // Primeira execução como admin: semeia os cultos de exemplo
+      let cultosCarregados = cultos;
       if (cultos.length === 0 && usuario.perfil === 'admin') {
         await sbSeedCultos();
-        const cultosSeeded = await sbGetCultos();
-        _dispatch({ type: 'hydrate', membros, cultos: cultosSeeded, indispo });
+        cultosCarregados = await sbGetCultos();
         showToast('Cultos de exemplo carregados!', 'info');
-      } else {
-        _dispatch({ type: 'hydrate', membros, cultos, indispo });
       }
+
+      // Preenche silenciosamente qualquer quinta/domingo faltante nas próximas 8 semanas
+      // (nunca apaga ou redistribui cultos já existentes — apenas completa lacunas)
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      const fmtISO = (d) => d.toISOString().slice(0, 10);
+      const funcKeys = Object.keys(window.FUNCOES || {});
+      const escaladosVazios = () => Object.fromEntries(funcKeys.map((k) => [k, null]));
+      const isSegundoDomingo = (iso) => { const d = parseInt(iso.split('-')[2], 10); return d >= 8 && d <= 14; };
+      const faltantes = [];
+      for (let w = 0; w < 8; w++) {
+        const thu = new Date(hoje);
+        thu.setDate(hoje.getDate() + (((4 - hoje.getDay()) + 7) % 7 || 7) + w * 7);
+        const thuISO = fmtISO(thu);
+        if (!cultosCarregados.find((c) => c.data === thuISO)) {
+          faltantes.push({ id: `qui_${thuISO}`, data: thuISO, horario: '20:00', titulo: 'Culto Profético', cor: '#7C5CFF', escalados: escaladosVazios() });
+        }
+        const sun = new Date(hoje);
+        sun.setDate(hoje.getDate() + (((0 - hoje.getDay()) + 7) % 7 || 7) + w * 7);
+        const sunISO = fmtISO(sun);
+        if (!cultosCarregados.find((c) => c.data === sunISO)) {
+          const titulo = isSegundoDomingo(sunISO) ? 'Ceia' : 'Culto da Família';
+          faltantes.push({ id: `dom_${sunISO}`, data: sunISO, horario: '19:00', titulo, cor: '#3B82F6', escalados: escaladosVazios() });
+        }
+      }
+      if (faltantes.length > 0) {
+        for (const c of faltantes) await sbUpsertCulto(c);
+        cultosCarregados = [...cultosCarregados, ...faltantes];
+      }
+
+      _dispatch({ type: 'hydrate', membros, cultos: cultosCarregados, indispo });
       // Carrega equipe do membro atual
       const membroAtual = membros.find((m) => m.id === usuario.id);
       if (membroAtual?.equipe_id) {

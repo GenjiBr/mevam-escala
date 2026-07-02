@@ -1823,10 +1823,8 @@ function AdminScreen({ state, dispatch, usuario, equipe, onToast, onGerarEscala,
   const [periodoKey, setPeriodoKey] = React.useState('4'); // semanas padrão (1 mês)
 
   const PERIODOS = [
-    { key: '4',  label: '1 mês'   },
-    { key: '13', label: '3 meses' },
-    { key: '26', label: '6 meses' },
-    { key: '52', label: '1 ano'   },
+    { key: '4', label: '1 mês'   },
+    { key: '8', label: '2 meses' },
   ];
   const semanas = parseInt(periodoKey, 10);
 
