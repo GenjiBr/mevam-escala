@@ -423,10 +423,13 @@ function SlotPickerModal({ funcId, culto, state, equipe, onSelect, onClose }) {
     .flatMap((v) => (Array.isArray(v) ? v : (v ? [v] : [])))
     .filter((id) => !id?.startsWith('convidado_'));
 
+  // vocal_backing_2 é um segundo slot da mesma função — busca candidatos como vocal_backing
+  const funcIdParaMatch = funcId === 'vocal_backing_2' ? 'vocal_backing' : funcId;
+
   const candidatos = state.membros.filter((m) =>
     m.status === 'ativo' &&
     m.equipe_id === equipe?.id &&
-    (m.func === funcId || (m.secundarias || []).includes(funcId)) &&
+    (m.func === funcIdParaMatch || (m.secundarias || []).includes(funcIdParaMatch)) &&
     !indispoIds.includes(m.id) &&
     (!jaEscaladosIds.includes(m.id) || m.id === membroAtual)
   );
