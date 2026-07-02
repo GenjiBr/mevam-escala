@@ -3,6 +3,7 @@
 window.FUNCOES = {
   ministro:      { label: 'Min. de Louvor',  color: '#F39C12', icon: '⭐',  short: 'ML' },
   vocal_backing: { label: 'Vocal / Backing', color: '#8E44AD', icon: '🎵',  short: 'VB' },
+  vocal_backing_2: { label: 'Vocal / Backing', color: '#8E44AD', icon: '🎵', short: 'VB' },
   guitarra:      { label: 'Guitarra',        color: '#E67E22', icon: '🎸',  short: 'GT' },
   baixo:         { label: 'Baixo',           color: '#3B6FB5', icon: '🎸',  short: 'BX' },
   bateria:       { label: 'Bateria',         color: '#E74C3C', icon: '🥁',  short: 'BT' },
@@ -35,7 +36,7 @@ function getNextOccurrences(weekday, count) {
 }
 
 // Escalados vazios (preenchidos pelo admin depois)
-const ESC_VAZIO = { ministro: null, vocal_backing: null, guitarra: null, baixo: null,
+const ESC_VAZIO = { ministro: null, vocal_backing: null, vocal_backing_2: null, guitarra: null, baixo: null,
   bateria: null, teclado: null, violao: null, telao: null, live: null, story: null, camera_fixa: null,iluminacao: null, convidado: null, };
 
 // 2º domingo do mês: dia entre 8 e 14

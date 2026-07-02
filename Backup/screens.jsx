@@ -1676,7 +1676,7 @@ function LembreteEscala({ culto, usuarioId, state }) {
   const ehDomingo = diaSemana === 0;
 
   let msgEmoji, msgTexto;
-  if (func === 'ministro' || func === 'vocal_backing') {
+  if (func === 'ministro' || func === 'vocal_backing' || func === 'vocal_backing_2') {
     msgEmoji = '🎤'; msgTexto = `Você vai cantar ${nomeDia}`;
   } else if (func === 'guitarra' || func === 'baixo' || func === 'violao') {
     msgEmoji = '🎸'; msgTexto = `Você toca ${nomeDia}`;
